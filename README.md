@@ -36,7 +36,7 @@ Say goodbye to endlessly scrolling through playlists — MeloPick finds hidden g
    ```bash
    git clone https://github.com/yourusername/melopick.git
    cd melopick
-```
+   ```
 
 2. **Install dependencies** (if using React)
 
