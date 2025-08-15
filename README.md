@@ -17,7 +17,7 @@ Say goodbye to endlessly scrolling through playlists — MeloPick finds hidden g
 ---
 
 ## 🖼 Preview
-![MeloPick Screenshot](./screenshot.png)
+![MeloPick Screenshot](./melopick.png)
 
 ---
 
@@ -55,8 +55,8 @@ Say goodbye to endlessly scrolling through playlists — MeloPick finds hidden g
 4. **Create `.env` file**
 
    ```env
-   REACT_APP_SPOTIFY_CLIENT_ID=cf9dbb3b82bd4d63befc40abc726cc16
-   REACT_APP_SPOTIFY_CLIENT_SECRET=8f98d6828f424167a952af3a76506740
+   REACT_APP_SPOTIFY_CLIENT_ID=
+   REACT_APP_SPOTIFY_CLIENT_SECRET=
    ```
 
 5. **Run the app locally**
@@ -69,7 +69,7 @@ Say goodbye to endlessly scrolling through playlists — MeloPick finds hidden g
 
 ## 🚀 Deployment
 
-Deploy to [Netlify](https://www.netlify.com/) or [Vercel](https://vercel.com/).
+Deploy to [Netlify](https://www.netlify.com/).
 
 ---
 
