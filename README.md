@@ -1,5 +1,7 @@
 # 🎵 MeloPick
 
+![MeloPick Logo](./melopick-logo2.png)
+
 MeloPick is a sleek, green-and-black themed web app that helps you discover random songs using the Spotify API.  
 Say goodbye to endlessly scrolling through playlists — MeloPick finds hidden gems and lets you groove instantly.
 
