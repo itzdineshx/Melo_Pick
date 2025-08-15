@@ -1,0 +1,319 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* MeloPick Design System - Music-themed color palette and animations */
+
+@layer base {
+  :root {
+    /* MeloPick Brand Colors */
+    --background: 0 0% 0%;
+    --background-gradient: linear-gradient(135deg, hsl(0 0% 0%) 0%, hsl(0 0% 2%) 100%);
+    --foreground: 0 0% 100%;
+
+    --card: 0 0% 3%;
+    --card-foreground: 0 0% 100%;
+    --card-hover: 0 0% 5%;
+
+    --popover: 0 0% 3%;
+    --popover-foreground: 0 0% 100%;
+
+    /* Emerald Green Primary */
+    --primary: 157 100% 33%;
+    --primary-foreground: 0 0% 0%;
+    --primary-glow: 157 100% 45%;
+    --primary-light: 157 60% 70%;
+
+    /* Light Green Accent */
+    --accent: 145 45% 72%;
+    --accent-foreground: 0 0% 0%;
+    --accent-dark: 145 45% 60%;
+
+    --secondary: 0 0% 6%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 60%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 12%;
+    --input: 0 0% 8%;
+    --ring: 157 100% 33%;
+
+    --radius: 12px;
+
+    /* Music-themed gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-glow)) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card-hover)) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(var(--accent-dark)) 100%);
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    
+    /* Shadows with green glow */
+    --shadow-primary: 0 10px 40px -10px hsl(var(--primary) / 0.3);
+    --shadow-accent: 0 5px 20px -5px hsl(var(--accent) / 0.2);
+    --shadow-card: 0 8px 30px -5px hsl(0 0% 0% / 0.4);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Open Sans', sans-serif;
+    background: var(--background-gradient);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+  }
+}
+
+@layer components {
+  /* Music-themed animations */
+  .vinyl-spin {
+    animation: spin 8s linear infinite;
+  }
+  
+  .sound-wave {
+    animation: soundWave 2s ease-in-out infinite alternate;
+  }
+  
+  /* Musical note floating animations - different timings for variety */
+  .float-note-1 {
+    animation: floatNote1 4s ease-in-out infinite;
+  }
+  
+  .float-note-2 {
+    animation: floatNote2 5s ease-in-out infinite;
+  }
+  
+  .float-note-3 {
+    animation: floatNote3 6s ease-in-out infinite;
+  }
+  
+  .float-note-4 {
+    animation: floatNote4 3.5s ease-in-out infinite;
+  }
+  
+  /* Musical beat synchronized pulses */
+  .pulse-beat {
+    animation: pulseBeat 1.5s ease-in-out infinite;
+  }
+  
+  .pulse-beat-delayed {
+    animation: pulseBeat 1.5s ease-in-out infinite 0.3s;
+  }
+  
+  .pulse-beat-slow {
+    animation: pulseBeat 3s ease-in-out infinite;
+  }
+  
+  /* Sound wave visualization bars */
+  .sound-bar-1 {
+    animation: soundBar1 0.8s ease-in-out infinite alternate;
+  }
+  
+  .sound-bar-2 {
+    animation: soundBar2 1.2s ease-in-out infinite alternate;
+  }
+  
+  .sound-bar-3 {
+    animation: soundBar3 0.6s ease-in-out infinite alternate;
+  }
+  
+  .sound-bar-4 {
+    animation: soundBar4 1s ease-in-out infinite alternate;
+  }
+  
+  .sound-bar-5 {
+    animation: soundBar5 0.9s ease-in-out infinite alternate;
+  }
+  
+  .glow-primary {
+    box-shadow: var(--shadow-primary);
+  }
+  
+  .glow-accent {
+    box-shadow: var(--shadow-accent);
+  }
+
+  /* Card hover effects */
+  .music-card {
+    transition: var(--transition-smooth);
+  }
+  
+  .music-card:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Button variants */
+  .btn-hero {
+    background: var(--gradient-primary);
+    color: hsl(var(--primary-foreground));
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    transition: var(--transition-spring);
+  }
+  
+  .btn-hero:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-primary);
+  }
+  
+  .btn-accent {
+    background: var(--gradient-accent);
+    color: hsl(var(--accent-foreground));
+    transition: var(--transition-smooth);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes soundWave {
+  0% { transform: scaleY(1); }
+  100% { transform: scaleY(1.5); }
+}
+
+/* Musical note floating animations */
+@keyframes floatNote1 {
+  0%, 100% { 
+    transform: translateY(0px) translateX(0px) rotate(-5deg); 
+    opacity: 0.4;
+  }
+  25% { 
+    transform: translateY(-20px) translateX(10px) rotate(0deg); 
+    opacity: 0.8;
+  }
+  50% { 
+    transform: translateY(-30px) translateX(-5px) rotate(5deg); 
+    opacity: 1;
+  }
+  75% { 
+    transform: translateY(-15px) translateX(8px) rotate(-2deg); 
+    opacity: 0.6;
+  }
+}
+
+@keyframes floatNote2 {
+  0%, 100% { 
+    transform: translateY(0px) translateX(0px) rotate(3deg); 
+    opacity: 0.3;
+  }
+  33% { 
+    transform: translateY(-25px) translateX(-12px) rotate(-4deg); 
+    opacity: 0.9;
+  }
+  66% { 
+    transform: translateY(-20px) translateX(15px) rotate(6deg); 
+    opacity: 0.7;
+  }
+}
+
+@keyframes floatNote3 {
+  0%, 100% { 
+    transform: translateY(0px) translateX(0px) rotate(-2deg); 
+    opacity: 0.5;
+  }
+  40% { 
+    transform: translateY(-35px) translateX(8px) rotate(4deg); 
+    opacity: 1;
+  }
+  80% { 
+    transform: translateY(-10px) translateX(-10px) rotate(-6deg); 
+    opacity: 0.6;
+  }
+}
+
+@keyframes floatNote4 {
+  0%, 100% { 
+    transform: translateY(0px) translateX(0px) rotate(1deg); 
+    opacity: 0.4;
+  }
+  50% { 
+    transform: translateY(-40px) translateX(-8px) rotate(-3deg); 
+    opacity: 0.9;
+  }
+}
+
+/* Musical beat synchronized pulse */
+@keyframes pulseBeat {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 1;
+  }
+  20% { 
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  40% { 
+    transform: scale(0.95);
+    opacity: 1;
+  }
+  60% { 
+    transform: scale(1.02);
+    opacity: 0.9;
+  }
+}
+
+/* Sound wave bars */
+@keyframes soundBar1 {
+  0% { height: 4px; }
+  100% { height: 20px; }
+}
+
+@keyframes soundBar2 {
+  0% { height: 8px; }
+  100% { height: 32px; }
+}
+
+@keyframes soundBar3 {
+  0% { height: 2px; }
+  100% { height: 16px; }
+}
+
+@keyframes soundBar4 {
+  0% { height: 6px; }
+  100% { height: 28px; }
+}
+
+@keyframes soundBar5 {
+  0% { height: 4px; }
+  100% { height: 24px; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
