@@ -288,9 +288,11 @@ class SpotifyService {
           language: await this.detectLanguageEnhanced(track, filters.market || 'US')
         })));
 
-        // If no language filter is specified, randomize language selection for variety
+        // Enhanced randomization and variance for both filtered and unfiltered requests
         if (!filters.language) {
           tracks = this.diversifyLanguages(tracks);
+          // Additional randomization for no-filter cases
+          tracks = this.addVarianceToNoFilterResults(tracks, filters);
         } else {
           // Filter by language if specified
           const filteredTracks = tracks.filter((track: Track) => track.language === filters.language);
@@ -367,9 +369,10 @@ class SpotifyService {
         language: await this.detectLanguageEnhanced(track, filters.market || 'US')
       })));
 
-      // If no language filter is specified, diversify languages for variety
+      // Enhanced variance for fallback tracks
       if (!filters.language) {
         tracks = this.diversifyLanguages(tracks);
+        tracks = this.addVarianceToNoFilterResults(tracks, filters);
       } else {
         // Filter by language if specified
         const filteredTracks = tracks.filter((track: Track) => track.language === filters.language);
@@ -950,39 +953,418 @@ class SpotifyService {
   }
 
   private diversifyLanguages(tracks: Track[]): Track[] {
-    // Group tracks by language
+    // Enhanced diversity algorithm with weighted randomization
     const languageGroups: { [key: string]: Track[] } = {};
+    const regionGroups: { [key: string]: Track[] } = {};
+    const artistGroups: { [key: string]: Track[] } = {};
+    
     tracks.forEach(track => {
       const lang = track.language || 'en';
-      if (!languageGroups[lang]) {
-        languageGroups[lang] = [];
-      }
+      const region = this.getRegionFromLanguage(lang);
+      const primaryArtist = track.artists[0]?.name || 'unknown';
+      
+      // Group by language
+      if (!languageGroups[lang]) languageGroups[lang] = [];
       languageGroups[lang].push(track);
+      
+      // Group by region
+      if (!regionGroups[region]) regionGroups[region] = [];
+      regionGroups[region].push(track);
+      
+      // Group by artist to prevent same artist repetition
+      if (!artistGroups[primaryArtist]) artistGroups[primaryArtist] = [];
+      artistGroups[primaryArtist].push(track);
     });
 
-    // Get all available languages
     const availableLanguages = Object.keys(languageGroups);
+    const availableRegions = Object.keys(regionGroups);
     
-    // If we have multiple languages, create a more diverse selection
-    if (availableLanguages.length > 1) {
+    // Enhanced diversification strategy
+    if (availableLanguages.length > 1 || availableRegions.length > 1) {
       const diverseTracks: Track[] = [];
-      const maxTracksPerLanguage = Math.ceil(tracks.length / availableLanguages.length);
+      const usedArtists = new Set<string>();
+      const languageUsageCount: { [key: string]: number } = {};
+      const regionUsageCount: { [key: string]: number } = {};
       
-      // Add tracks from each language group, prioritizing variety
-      availableLanguages.forEach(lang => {
-        const langTracks = languageGroups[lang];
-        // Shuffle tracks within each language group
-        const shuffledTracks = langTracks.sort(() => Math.random() - 0.5);
-        // Take up to maxTracksPerLanguage from each language
-        diverseTracks.push(...shuffledTracks.slice(0, maxTracksPerLanguage));
-      });
+      // Initialize usage counters
+      availableLanguages.forEach(lang => languageUsageCount[lang] = 0);
+      availableRegions.forEach(region => regionUsageCount[region] = 0);
       
-      // Shuffle the final diverse selection
-      return diverseTracks.sort(() => Math.random() - 0.5);
+      // Advanced selection algorithm with multiple diversity factors
+      const maxSelections = Math.min(tracks.length, 50);
+      const attempts = maxSelections * 3; // More attempts for better diversity
+      
+      for (let i = 0; i < attempts && diverseTracks.length < maxSelections; i++) {
+        // Weighted random selection favoring less-used languages/regions
+        const selectedLanguage = this.selectWithWeights(availableLanguages, languageUsageCount, true);
+        const selectedRegion = this.selectWithWeights(availableRegions, regionUsageCount, true);
+        
+        // Get candidate tracks from the selected language and region
+        let candidateTracks = languageGroups[selectedLanguage] || [];
+        
+        // Filter to prevent artist repetition (allow max 1 track per artist)
+        candidateTracks = candidateTracks.filter(track => {
+          const artistName = track.artists[0]?.name;
+          return !usedArtists.has(artistName);
+        });
+        
+        // Add region preference
+        const regionTracks = candidateTracks.filter(track => {
+          const trackRegion = this.getRegionFromLanguage(track.language || 'en');
+          return trackRegion === selectedRegion;
+        });
+        
+        const finalCandidates = regionTracks.length > 0 ? regionTracks : candidateTracks;
+        
+        if (finalCandidates.length > 0) {
+          // Random selection from candidates with popularity weighting
+          const selectedTrack = this.selectTrackWithPopularityVariance(finalCandidates);
+          
+          if (!diverseTracks.some(t => t.id === selectedTrack.id)) {
+            diverseTracks.push(selectedTrack);
+            
+            // Update usage counters
+            languageUsageCount[selectedLanguage]++;
+            regionUsageCount[selectedRegion]++;
+            usedArtists.add(selectedTrack.artists[0]?.name || '');
+          }
+        }
+      }
+      
+      // If we still don't have enough tracks, fill with remaining tracks
+      if (diverseTracks.length < maxSelections) {
+        const remainingTracks = tracks.filter(track => 
+          !diverseTracks.some(dt => dt.id === track.id)
+        );
+        
+        // Add remaining tracks with continued artist filtering
+        for (const track of remainingTracks) {
+          if (diverseTracks.length >= maxSelections) break;
+          
+          const artistName = track.artists[0]?.name;
+          if (!usedArtists.has(artistName)) {
+            diverseTracks.push(track);
+            usedArtists.add(artistName);
+          }
+        }
+      }
+      
+      // Final shuffle with variance in positioning
+      return this.intelligentShuffle(diverseTracks);
     }
     
-    // If only one language available, just shuffle
-    return tracks.sort(() => Math.random() - 0.5);
+    // If only one language/region, still apply artist diversity and intelligent shuffle
+    return this.applyArtistDiversityAndShuffle(tracks);
+  }
+
+  private getRegionFromLanguage(language: string): string {
+    const languageToRegion: { [key: string]: string } = {
+      'hi': 'south-asia', 'ur': 'south-asia', 'bn': 'south-asia', 'pa': 'south-asia',
+      'ta': 'south-asia', 'te': 'south-asia', 'gu': 'south-asia', 'kn': 'south-asia',
+      'ml': 'south-asia', 'mr': 'south-asia', 'or': 'south-asia', 'as': 'south-asia',
+      'ko': 'east-asia', 'ja': 'east-asia', 'zh': 'east-asia',
+      'es': 'latin', 'pt': 'latin',
+      'fr': 'europe', 'de': 'europe', 'it': 'europe', 'ru': 'europe', 'nl': 'europe',
+      'ar': 'middle-east', 'tr': 'middle-east', 'he': 'middle-east',
+      'en': 'anglo', 'sv': 'nordic', 'no': 'nordic', 'da': 'nordic', 'fi': 'nordic'
+    };
+    
+    return languageToRegion[language] || 'other';
+  }
+
+  private selectWithWeights(options: string[], usageCount: { [key: string]: number }, favorLessUsed: boolean = true): string {
+    if (options.length === 0) return '';
+    if (options.length === 1) return options[0];
+    
+    // Calculate weights (inverse of usage for diversity)
+    const maxUsage = Math.max(...Object.values(usageCount));
+    const weights = options.map(option => {
+      const usage = usageCount[option] || 0;
+      return favorLessUsed ? (maxUsage - usage + 1) : (usage + 1);
+    });
+    
+    // Weighted random selection
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (let i = 0; i < options.length; i++) {
+      random -= weights[i];
+      if (random <= 0) {
+        return options[i];
+      }
+    }
+    
+    return options[options.length - 1];
+  }
+
+  private selectTrackWithPopularityVariance(tracks: Track[]): Track {
+    if (tracks.length === 1) return tracks[0];
+    
+    // Create popularity buckets for variance
+    const sorted = [...tracks].sort((a, b) => b.popularity - a.popularity);
+    const bucketSize = Math.ceil(tracks.length / 3);
+    
+    // 40% chance high popularity, 35% medium, 25% low
+    const random = Math.random();
+    let selectedBucket: Track[];
+    
+    if (random < 0.4) {
+      selectedBucket = sorted.slice(0, bucketSize); // High popularity
+    } else if (random < 0.75) {
+      selectedBucket = sorted.slice(bucketSize, bucketSize * 2); // Medium popularity
+    } else {
+      selectedBucket = sorted.slice(bucketSize * 2); // Low popularity
+    }
+    
+    // Random selection within the bucket
+    return selectedBucket[Math.floor(Math.random() * selectedBucket.length)];
+  }
+
+  private intelligentShuffle(tracks: Track[]): Track[] {
+    if (tracks.length <= 1) return tracks;
+    
+    const shuffled = [...tracks];
+    
+    // Fisher-Yates shuffle with intelligent spacing
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      let j = Math.floor(Math.random() * (i + 1));
+      
+      // Avoid placing tracks with same language consecutively
+      const currentLang = shuffled[i].language;
+      const swapLang = shuffled[j].language;
+      
+      if (i > 0 && currentLang === swapLang && currentLang === shuffled[i-1].language) {
+        // Try to find a different language track to swap with
+        for (let k = 0; k < i; k++) {
+          if (shuffled[k].language !== currentLang) {
+            j = k;
+            break;
+          }
+        }
+      }
+      
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    return shuffled;
+  }
+
+  private applyArtistDiversityAndShuffle(tracks: Track[]): Track[] {
+    const usedArtists = new Set<string>();
+    const diverseTracks: Track[] = [];
+    
+    // First pass: one track per artist
+    for (const track of tracks) {
+      const artistName = track.artists[0]?.name;
+      if (!usedArtists.has(artistName)) {
+        diverseTracks.push(track);
+        usedArtists.add(artistName);
+      }
+    }
+    
+    // Second pass: fill remaining with duplicates if needed
+    const remaining = tracks.filter(track => 
+      !diverseTracks.some(dt => dt.id === track.id)
+    );
+    
+    diverseTracks.push(...remaining);
+    
+    return this.intelligentShuffle(diverseTracks);
+  }
+
+  private addVarianceToNoFilterResults(tracks: Track[], filters: RecommendationFilters): Track[] {
+    // Enhanced variance algorithm for when no specific filters are applied
+    
+    // 1. Create diverse genre buckets
+    const genreGroups: { [key: string]: Track[] } = {};
+    const eraGroups: { [key: string]: Track[] } = {};
+    const popularityGroups: { [key: string]: Track[] } = {};
+    
+    tracks.forEach(track => {
+      // Group by inferred genre or style
+      const genre = this.inferTrackGenre(track);
+      if (!genreGroups[genre]) genreGroups[genre] = [];
+      genreGroups[genre].push(track);
+      
+      // Group by era (decade)
+      const year = new Date(track.album.release_date).getFullYear();
+      const decade = Math.floor(year / 10) * 10;
+      const era = decade >= 2020 ? 'modern' : decade >= 2010 ? '2010s' : decade >= 2000 ? '2000s' : decade >= 1990 ? '90s' : 'classic';
+      if (!eraGroups[era]) eraGroups[era] = [];
+      eraGroups[era].push(track);
+      
+      // Group by popularity level
+      const popLevel = track.popularity >= 70 ? 'high' : track.popularity >= 40 ? 'medium' : 'low';
+      if (!popularityGroups[popLevel]) popularityGroups[popLevel] = [];
+      popularityGroups[popLevel].push(track);
+    });
+    
+    // 2. Create diverse selection strategy
+    const diverseSelection: Track[] = [];
+    const maxTracks = Math.min(tracks.length, 50);
+    const usedTrackIds = new Set<string>();
+    
+    // 3. Ensure representation from each major group
+    const allGenres = Object.keys(genreGroups);
+    const allEras = Object.keys(eraGroups);
+    const allPopLevels = Object.keys(popularityGroups);
+    
+    // 4. Smart selection with maximum variance
+    for (let attempt = 0; attempt < maxTracks * 2 && diverseSelection.length < maxTracks; attempt++) {
+      // Random selection of variance factors
+      const selectedGenre = allGenres[Math.floor(Math.random() * allGenres.length)];
+      const selectedEra = allEras[Math.floor(Math.random() * allEras.length)];
+      const selectedPopLevel = allPopLevels[Math.floor(Math.random() * allPopLevels.length)];
+      
+      // Find tracks that match multiple variance criteria
+      const candidates = tracks.filter(track => {
+        if (usedTrackIds.has(track.id)) return false;
+        
+        const trackGenre = this.inferTrackGenre(track);
+        const year = new Date(track.album.release_date).getFullYear();
+        const decade = Math.floor(year / 10) * 10;
+        const era = decade >= 2020 ? 'modern' : decade >= 2010 ? '2010s' : decade >= 2000 ? '2000s' : decade >= 1990 ? '90s' : 'classic';
+        const popLevel = track.popularity >= 70 ? 'high' : track.popularity >= 40 ? 'medium' : 'low';
+        
+        // Prefer tracks that match multiple criteria for better variance
+        let score = 0;
+        if (trackGenre === selectedGenre) score++;
+        if (era === selectedEra) score++;
+        if (popLevel === selectedPopLevel) score++;
+        
+        return score >= 1; // At least one match
+      });
+      
+      if (candidates.length > 0) {
+        // Select with weighted randomness
+        const selectedTrack = this.selectTrackWithTemporalVariance(candidates);
+        if (!usedTrackIds.has(selectedTrack.id)) {
+          diverseSelection.push(selectedTrack);
+          usedTrackIds.add(selectedTrack.id);
+        }
+      }
+    }
+    
+    // 5. Fill remaining slots with truly random selections
+    if (diverseSelection.length < maxTracks) {
+      const remaining = tracks.filter(track => !usedTrackIds.has(track.id));
+      const shuffledRemaining = remaining.sort(() => Math.random() - 0.5);
+      
+      for (let i = 0; i < Math.min(shuffledRemaining.length, maxTracks - diverseSelection.length); i++) {
+        diverseSelection.push(shuffledRemaining[i]);
+      }
+    }
+    
+    // 6. Apply intelligent shuffle to prevent clustering
+    return this.shuffleWithVarianceOptimization(diverseSelection);
+  }
+
+  private inferTrackGenre(track: Track): string {
+    const trackText = `${track.name} ${track.artists.map(a => a.name).join(' ')} ${track.album.name}`.toLowerCase();
+    
+    // Enhanced genre detection
+    if (/bollywood|hindi|indian|bharat/i.test(trackText)) return 'bollywood';
+    if (/rock|metal|punk|grunge/i.test(trackText)) return 'rock';
+    if (/pop|chart|hit|radio/i.test(trackText)) return 'pop';
+    if (/electronic|edm|techno|house|dance/i.test(trackText)) return 'electronic';
+    if (/hip.hop|rap|trap|urban/i.test(trackText)) return 'hip-hop';
+    if (/jazz|swing|blues|soul/i.test(trackText)) return 'jazz';
+    if (/classical|symphony|orchestra|instrumental/i.test(trackText)) return 'classical';
+    if (/(r&b|rnb)|rhythm/i.test(trackText)) return 'rnb';
+    if (/country|folk|acoustic/i.test(trackText)) return 'country';
+    if (/reggae|ska|dub/i.test(trackText)) return 'reggae';
+    if (/latin|salsa|merengue|bachata/i.test(trackText)) return 'latin';
+    if (/alternative|indie|underground/i.test(trackText)) return 'alternative';
+    
+    // Language-based genre inference
+    if (track.language) {
+      const langGenres: { [key: string]: string } = {
+        'hi': 'bollywood', 'ta': 'tamil', 'te': 'telugu', 'pa': 'punjabi',
+        'ko': 'k-pop', 'ja': 'j-pop', 'es': 'latin', 'fr': 'chanson'
+      };
+      if (langGenres[track.language]) return langGenres[track.language];
+    }
+    
+    return 'popular';
+  }
+
+  private selectTrackWithTemporalVariance(tracks: Track[]): Track {
+    if (tracks.length === 1) return tracks[0];
+    
+    // Add temporal variance based on release date
+    const now = new Date();
+    const tracksWithWeights = tracks.map(track => {
+      const releaseDate = new Date(track.album.release_date);
+      const ageInYears = (now.getTime() - releaseDate.getTime()) / (1000 * 60 * 60 * 24 * 365);
+      
+      // Weight factors
+      let weight = 1;
+      
+      // Slightly prefer newer content but still allow classics
+      if (ageInYears < 5) weight *= 1.3;
+      else if (ageInYears < 10) weight *= 1.1;
+      else if (ageInYears > 30) weight *= 1.2; // Vintage bonus
+      
+      // Popularity variance
+      if (track.popularity > 80) weight *= 0.9; // Slightly reduce extremely popular
+      else if (track.popularity < 30) weight *= 1.1; // Boost hidden gems
+      
+      return { track, weight };
+    });
+    
+    // Weighted random selection
+    const totalWeight = tracksWithWeights.reduce((sum, item) => sum + item.weight, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (const item of tracksWithWeights) {
+      random -= item.weight;
+      if (random <= 0) {
+        return item.track;
+      }
+    }
+    
+    return tracks[tracks.length - 1];
+  }
+
+  private shuffleWithVarianceOptimization(tracks: Track[]): Track[] {
+    if (tracks.length <= 2) return tracks;
+    
+    const optimized = [...tracks];
+    
+    // Multi-pass optimization to prevent clustering
+    for (let pass = 0; pass < 3; pass++) {
+      for (let i = 0; i < optimized.length - 1; i++) {
+        const current = optimized[i];
+        const next = optimized[i + 1];
+        
+        // Check for various clustering patterns
+        const sameLanguage = current.language === next.language;
+        const sameArtist = current.artists[0]?.name === next.artists[0]?.name;
+        const sameGenre = this.inferTrackGenre(current) === this.inferTrackGenre(next);
+        const similarPopularity = Math.abs(current.popularity - next.popularity) < 10;
+        
+        // If too similar, try to find a better position
+        if ((sameLanguage && sameGenre) || sameArtist || (sameLanguage && similarPopularity)) {
+          // Find a better swap candidate
+          for (let j = i + 2; j < Math.min(i + 8, optimized.length); j++) {
+            const candidate = optimized[j];
+            
+            // Check if swapping improves diversity
+            const candidateLanguage = candidate.language !== current.language;
+            const candidateArtist = candidate.artists[0]?.name !== current.artists[0]?.name;
+            const candidateGenre = this.inferTrackGenre(candidate) !== this.inferTrackGenre(current);
+            
+            if (candidateLanguage || candidateArtist || candidateGenre) {
+              // Perform swap
+              [optimized[i + 1], optimized[j]] = [optimized[j], optimized[i + 1]];
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    return optimized;
   }
 }
 

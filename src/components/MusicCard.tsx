@@ -17,6 +17,7 @@ interface Track {
     name: string;
     images: Array<{ url: string; height: number; width: number }>;
     release_date: string;
+    id: string;
     genres?: string[];
   };
   duration_ms: number;
