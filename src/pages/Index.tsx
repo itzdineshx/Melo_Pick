@@ -166,7 +166,6 @@ const Index = () => {
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 mr-3 group-hover:pulse-beat" />
                     <Music2 className="w-5 h-5 sm:w-6 sm:h-6 mr-3 group-hover:pulse-beat-delayed" />
                   </>
                 )}
@@ -240,18 +239,6 @@ const Index = () => {
               </div>
             </div>
             
-            {/* Main Description */}
-            <div className="mb-12 sm:mb-16 space-y-6">
-              <p className="text-foreground/90 text-lg sm:text-xl md:text-2xl max-w-4xl mx-auto leading-relaxed font-medium">
-                MeloPick helps you discover your next favorite song through intelligent random 
-                recommendations. Say goodbye to endless scrolling and indecision.
-              </p>
-              
-              <p className="text-muted-foreground text-base sm:text-lg max-w-3xl mx-auto leading-relaxed">
-                Our smart filter system ensures you get personalized recommendations based on 
-                your preferences for genre, year, artist, and geographical market.
-              </p>
-            </div>
             
             {/* Enhanced Footer Info */}
             <div className="bg-card/80 backdrop-blur-sm border border-primary/20 rounded-2xl p-6 sm:p-8 md:p-10 glow-accent">

@@ -37,7 +37,10 @@ const GENRES = [
 ];
 
 const MARKETS = [
+  { code: 'IN', name: 'India' },
   { code: 'US', name: 'United States' },
+  { code: 'JP', name: 'Japan' },
+  { code: 'KR', name: 'South Korea' },
   { code: 'GB', name: 'United Kingdom' },
   { code: 'CA', name: 'Canada' },
   { code: 'AU', name: 'Australia' },
@@ -47,13 +50,14 @@ const MARKETS = [
   { code: 'ES', name: 'Spain' },
   { code: 'BR', name: 'Brazil' },
   { code: 'MX', name: 'Mexico' },
-  { code: 'JP', name: 'Japan' },
-  { code: 'KR', name: 'South Korea' },
-  { code: 'IN', name: 'India' },
 ];
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
+  { code: 'ta', name: 'Tamil' },
+  { code: 'hi', name: 'Hindi' },
+  { code: 'ml', name: 'Malayalam' },
+  { code: 'te', name: 'Telugu' },
   { code: 'es', name: 'Spanish' },
   { code: 'fr', name: 'French' },
   { code: 'de', name: 'German' },
@@ -63,18 +67,11 @@ const LANGUAGES = [
   { code: 'ko', name: 'Korean' },
   { code: 'zh', name: 'Chinese' },
   { code: 'ar', name: 'Arabic' },
-  { code: 'hi', name: 'Hindi' },
-  { code: 'ta', name: 'Tamil' },
-  { code: 'te', name: 'Telugu' },
   { code: 'bn', name: 'Bengali' },
   { code: 'mr', name: 'Marathi' },
   { code: 'gu', name: 'Gujarati' },
   { code: 'kn', name: 'Kannada' },
-  { code: 'ml', name: 'Malayalam' },
   { code: 'pa', name: 'Punjabi' },
-  { code: 'or', name: 'Odia' },
-  { code: 'as', name: 'Assamese' },
-  { code: 'ur', name: 'Urdu' },
   { code: 'ru', name: 'Russian' },
 ];
 
@@ -217,7 +214,7 @@ export default function FiltersModal({ onFiltersChange, currentFilters, trigger 
           <div className="space-y-2">
             <Label htmlFor="market" className="text-sm font-medium flex items-center gap-2">
               <Globe className="w-4 h-4 text-accent" />
-              Market/Region
+              Region
             </Label>
             <Select
               value={localFilters.market}

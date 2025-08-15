@@ -7,16 +7,6 @@ export default function AboutSection() {
             ABOUT MELOPICK
           </h2>
           
-          <p className="text-muted-foreground leading-relaxed mb-6 text-center">
-            MeloPick helps you discover your next favorite song through intelligent random recommendations. 
-            Say goodbye to endless scrolling and indecision - let us find the perfect song for your mood.
-          </p>
-          
-          <p className="text-muted-foreground text-center mb-6">
-            Our smart filter system ensures you get personalized recommendations based on your 
-            preferences for genre, year, artist, and geographical market.
-          </p>
-
           <div className="text-center">
             <p className="text-sm text-muted-foreground">
               Powered by <span className="text-primary font-medium">The Spotify Database (TMDB)</span>

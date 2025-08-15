@@ -12,11 +12,15 @@ interface SpotifyAuthResponse {
 interface Track {
   id: string;
   name: string;
-  artists: Array<{ name: string }>;
+  artists: Array<{ 
+    name: string;
+    id: string;
+  }>;
   album: {
     name: string;
     images: Array<{ url: string; height: number; width: number }>;
     release_date: string;
+    id: string;
   };
   duration_ms: number;
   popularity: number;
@@ -26,6 +30,7 @@ interface Track {
   };
   explicit: boolean;
   language?: string;
+  available_markets?: string[];
 }
 
 interface RecommendationFilters {
@@ -118,6 +123,60 @@ class SpotifyService {
     } catch (error) {
       console.error('Failed to get Spotify access token:', error);
       throw new Error('Failed to authenticate with Spotify');
+    }
+  }
+
+  // Enhanced method to get artist details including genres
+  async getArtistDetails(artistId: string): Promise<any> {
+    const cacheKey = this.getCacheKey('artist_details', { artistId });
+    const cached = this.getFromCache<any>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+
+    const token = await this.getAccessToken();
+    
+    try {
+      const response: any = await this.makeRequestWithRetry(
+        `https://api.spotify.com/v1/artists/${artistId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      this.setCache(cacheKey, response);
+      return response;
+    } catch (error) {
+      console.error('Failed to get artist details:', error);
+      return null;
+    }
+  }
+
+  // Enhanced method to get album details including genres
+  async getAlbumDetails(albumId: string): Promise<any> {
+    const cacheKey = this.getCacheKey('album_details', { albumId });
+    const cached = this.getFromCache<any>(cacheKey);
+    
+    if (cached) {
+      return cached;
+    }
+
+    const token = await this.getAccessToken();
+    
+    try {
+      const response: any = await this.makeRequestWithRetry(
+        `https://api.spotify.com/v1/albums/${albumId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      this.setCache(cacheKey, response);
+      return response;
+    } catch (error) {
+      console.error('Failed to get album details:', error);
+      return null;
     }
   }
 
@@ -223,11 +282,11 @@ class SpotifyService {
 
       let tracks = response.tracks;
       if (tracks && tracks.length > 0) {
-        // Add language detection based on market or track data
-        tracks = tracks.map((track: Track) => ({
+        // Enhanced language detection with API data
+        tracks = await Promise.all(tracks.map(async (track: Track) => ({
           ...track,
-          language: this.detectLanguage(track, filters.market || 'US')
-        }));
+          language: await this.detectLanguageEnhanced(track, filters.market || 'US')
+        })));
 
         // If no language filter is specified, randomize language selection for variety
         if (!filters.language) {
@@ -302,11 +361,11 @@ class SpotifyService {
 
     let tracks = response.tracks.items;
     if (tracks && tracks.length > 0) {
-      // Add language detection
-      tracks = tracks.map((track: Track) => ({
+      // Enhanced language detection with API data
+      tracks = await Promise.all(tracks.map(async (track: Track) => ({
         ...track,
-        language: this.detectLanguage(track, filters.market || 'US')
-      }));
+        language: await this.detectLanguageEnhanced(track, filters.market || 'US')
+      })));
 
       // If no language filter is specified, diversify languages for variety
       if (!filters.language) {
@@ -456,10 +515,10 @@ class SpotifyService {
         let tracks = response.tracks.items;
         if (tracks && tracks.length > 0) {
           // Enhanced language detection for Indian languages
-          tracks = tracks.map((track: Track) => ({
+          tracks = await Promise.all(tracks.map(async (track: Track) => ({
             ...track,
-            language: this.detectLanguageEnhanced(track, filters.language!)
-          }));
+            language: await this.detectLanguageEnhanced(track, 'IN', filters.language!)
+          })));
 
           // Strict filtering for Indian languages
           const filteredTracks = tracks.filter((track: Track) => {
@@ -486,137 +545,408 @@ class SpotifyService {
     throw new Error(`No ${filters.language} tracks found`);
   }
 
-  private detectLanguageEnhanced(track: Track, targetLanguage: string): string {
-    const textToAnalyze = `${track.name} ${track.artists.map(a => a.name).join(' ')} ${track.album.name}`.toLowerCase();
+  // Enhanced language detection using multiple data sources
+  private async detectLanguageEnhanced(track: Track, market: string, targetLanguage?: string): Promise<string> {
+    try {
+      // Get additional data from Spotify API
+      const [artistDetails, albumDetails] = await Promise.all([
+        track.artists.length > 0 ? this.getArtistDetails(track.artists[0].id) : null,
+        this.getAlbumDetails(track.album.id)
+      ]);
+
+      // Combine all available text for analysis
+      const trackText = track.name.toLowerCase();
+      const artistText = track.artists.map(a => a.name).join(' ').toLowerCase();
+      const albumText = track.album.name.toLowerCase();
+      const allText = `${trackText} ${artistText} ${albumText}`;
+
+      // Priority detection using multiple sources
+      let detectedLanguage = 'en'; // Default
+
+      // 1. Use available markets for region-based detection
+      if (track.available_markets && track.available_markets.length > 0) {
+        const primaryMarket = track.available_markets[0];
+        const marketLanguage = this.getLanguageFromMarket(primaryMarket);
+        if (marketLanguage !== 'en' || track.available_markets.includes('IN')) {
+          detectedLanguage = marketLanguage;
+        }
+      }
+
+      // 2. Script-based detection (most reliable for non-Latin scripts)
+      const scriptLanguage = this.detectLanguageByScript(allText);
+      if (scriptLanguage !== 'en') {
+        detectedLanguage = scriptLanguage;
+      }
+
+      // 3. Artist genre-based detection
+      if (artistDetails && artistDetails.genres) {
+        const genreLanguage = this.detectLanguageFromGenres(artistDetails.genres);
+        if (genreLanguage !== 'en') {
+          detectedLanguage = genreLanguage;
+        }
+      }
+
+      // 4. Artist origin-based detection (if artist is from specific region)
+      const artistLanguage = this.detectLanguageFromArtist(track.artists[0].name);
+      if (artistLanguage !== 'en') {
+        detectedLanguage = artistLanguage;
+      }
+
+      // 5. Enhanced text pattern matching
+      const patternLanguage = this.detectLanguageByPatterns(allText);
+      if (patternLanguage !== 'en') {
+        detectedLanguage = patternLanguage;
+      }
+
+      // 6. Market-based fallback
+      if (detectedLanguage === 'en') {
+        detectedLanguage = this.getLanguageFromMarket(market);
+      }
+
+      return detectedLanguage;
+    } catch (error) {
+      console.error('Enhanced language detection failed:', error);
+      // Fallback to basic detection
+      return this.detectLanguage(track, market);
+    }
+  }
+
+  private detectLanguageByScript(text: string): string {
+    // Enhanced script detection with better patterns
     
-    // Enhanced detection for target language
-    const languagePatterns: { [key: string]: RegExp[] } = {
-      'hi': [/[\u0900-\u097F]/, /\b(hindi|bollywood|भारतीय|फिल्म)\b/i],
-      'ta': [/[\u0B80-\u0BFF]/, /\b(tamil|kollywood|தமிழ்)\b/i],
-      'te': [/[\u0C00-\u0C7F]/, /\b(telugu|tollywood|తెలుగు)\b/i],
-      'bn': [/[\u0980-\u09FF]/, /\b(bengali|বাংলা)\b/i],
-      'gu': [/[\u0A80-\u0AFF]/, /\b(gujarati|ગુજરાતી)\b/i],
-      'kn': [/[\u0C80-\u0CFF]/, /\b(kannada|ಕನ್ನಡ)\b/i],
-      'ml': [/[\u0D00-\u0D7F]/, /\b(malayalam|മലയാളം)\b/i],
-      'pa': [/[\u0A00-\u0A7F]/, /\b(punjabi|ਪੰਜਾਬੀ)\b/i],
-      'or': [/[\u0B00-\u0B7F]/, /\b(odia|ଓଡ଼ିଆ)\b/i],
-      'ur': [/[\u0600-\u06FF]/, /\b(urdu|اردو|ghazal|qawwali)\b/i],
+    // Indian scripts (most specific patterns first)
+    if (/[\u0900-\u097F]/.test(text)) return 'hi'; // Devanagari
+    if (/[\u0B80-\u0BFF]/.test(text)) return 'ta'; // Tamil
+    if (/[\u0C00-\u0C7F]/.test(text)) return 'te'; // Telugu
+    if (/[\u0980-\u09FF]/.test(text)) return 'bn'; // Bengali/Assamese
+    if (/[\u0A80-\u0AFF]/.test(text)) return 'gu'; // Gujarati
+    if (/[\u0C80-\u0CFF]/.test(text)) return 'kn'; // Kannada
+    if (/[\u0D00-\u0D7F]/.test(text)) return 'ml'; // Malayalam
+    if (/[\u0A00-\u0A7F]/.test(text)) return 'pa'; // Punjabi
+    if (/[\u0B00-\u0B7F]/.test(text)) return 'or'; // Odia
+    
+    // Arabic/Urdu
+    if (/[\u0600-\u06FF]/.test(text)) {
+      // Try to distinguish between Arabic and Urdu
+      if (/[\u0627\u0628\u062A\u062B\u062C\u062D\u062E\u062F]/.test(text)) {
+        return 'ar';
+      }
+      return 'ur';
+    }
+    
+    // East Asian
+    if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) return 'ja';
+    if (/[\uAC00-\uD7AF]/.test(text)) return 'ko';
+    if (/[\u4E00-\u9FAF]/.test(text)) return 'zh';
+    
+    // Cyrillic
+    if (/[\u0400-\u04FF]/.test(text)) return 'ru';
+    
+    return 'en'; // Default for Latin scripts
+  }
+
+  private detectLanguageFromGenres(genres: string[]): string {
+    const genreLanguageMap: { [key: string]: string } = {
+      'bollywood': 'hi',
+      'indian': 'hi',
+      'tamil': 'ta',
+      'telugu': 'te',
+      'bengali': 'bn',
+      'punjabi': 'pa',
+      'gujarati': 'gu',
+      'marathi': 'mr',
+      'kannada': 'kn',
+      'malayalam': 'ml',
+      'urdu': 'ur',
+      'k-pop': 'ko',
+      'j-pop': 'ja',
+      'french': 'fr',
+      'spanish': 'es',
+      'german': 'de',
+      'italian': 'it',
+      'russian': 'ru',
+      'chinese': 'zh'
     };
 
-    if (languagePatterns[targetLanguage]) {
-      for (const pattern of languagePatterns[targetLanguage]) {
-        if (pattern.test(textToAnalyze)) {
-          return targetLanguage;
+    for (const genre of genres) {
+      const lowerGenre = genre.toLowerCase();
+      for (const [key, lang] of Object.entries(genreLanguageMap)) {
+        if (lowerGenre.includes(key)) {
+          return lang;
         }
       }
     }
 
-    // Fallback to original detection
-    return this.detectLanguage(track, 'IN');
+    return 'en';
+  }
+
+  private detectLanguageFromArtist(artistName: string): string {
+    const artistName_lower = artistName.toLowerCase();
+    
+    // Well-known artists and their languages
+    const knownArtists: { [key: string]: string } = {
+      'arijit singh': 'hi',
+      'shreya ghoshal': 'hi',
+      'lata mangeshkar': 'hi',
+      'kishore kumar': 'hi',
+      'ar rahman': 'hi',
+      'yuvan shankar raja': 'ta',
+      'anirudh': 'ta',
+      'sid sriram': 'ta',
+      'devi sri prasad': 'te',
+      'ss thaman': 'te',
+      'diljit dosanjh': 'pa',
+      'sidhu moose wala': 'pa',
+      'falguni pathak': 'gu',
+      'shakira': 'es',
+      'enrique iglesias': 'es',
+      'celine dion': 'fr',
+      'edith piaf': 'fr',
+      'andrea bocelli': 'it',
+      'bts': 'ko',
+      'blackpink': 'ko',
+      'yui': 'ja'
+    };
+
+    for (const [artist, lang] of Object.entries(knownArtists)) {
+      if (artistName_lower.includes(artist)) {
+        return lang;
+      }
+    }
+
+    return 'en';
+  }
+
+  private detectLanguageByPatterns(text: string): string {
+    // Enhanced pattern matching for better accuracy
+    const patterns: { [key: string]: RegExp[] } = {
+      'hi': [
+        /\b(bollywood|hindi|bharat|film|gana|sangeet|pyaar|ishq|dil|jaan)\b/i,
+        /\b(kumar|singh|sharma|agarwal|gupta|verma)\b/i
+      ],
+      'ta': [
+        /\b(tamil|kollywood|chennai|madras|thalapathy|thala|anna)\b/i,
+        /\b(raja|rajan|kumar|murugan|selvam)\b/i
+      ],
+      'te': [
+        /\b(telugu|tollywood|hyderabad|andhra|telangana|cinema|paata)\b/i,
+        /\b(reddy|rao|krishna|rama|sai|sri)\b/i
+      ],
+      'pa': [
+        /\b(punjabi|punjab|bhangra|sikh|sardar|singh|kaur)\b/i,
+        /\b(dil|pyaar|jatt|munda|kudi|gal)\b/i
+      ],
+      'bn': [
+        /\b(bengali|bangla|kolkata|calcutta|tagore|rabindra)\b/i,
+        /\b(da|babu|roy|sen|ghosh|mukherjee)\b/i
+      ],
+      'gu': [
+        /\b(gujarati|gujarat|ahmedabad|surat|garba|dandiya)\b/i,
+        /\b(patel|shah|dave|mehta|joshi)\b/i
+      ],
+      'kn': [
+        /\b(kannada|karnataka|bangalore|bengaluru|sandalwood)\b/i,
+        /\b(gowda|rao|kumar|hegde|shetty)\b/i
+      ],
+      'ml': [
+        /\b(malayalam|kerala|kochi|trivandrum|mollywood)\b/i,
+        /\b(nair|menon|pillai|kumar|das)\b/i
+      ],
+      'mr': [
+        /\b(marathi|maharashtra|mumbai|pune|lavani)\b/i,
+        /\b(patil|desai|joshi|kulkarni|bhosle)\b/i
+      ],
+      'ur': [
+        /\b(urdu|ghazal|qawwali|nazm|shayari|pakistan)\b/i,
+        /\b(khan|ali|hassan|ahmed|shah)\b/i
+      ],
+      'es': [
+        /\b(spanish|espanol|latino|latina|amor|corazon|vida|mi|tu|el|la)\b/i,
+        /\b(rodriguez|garcia|martinez|lopez|gonzalez)\b/i
+      ],
+      'fr': [
+        /\b(french|francais|amour|mon|ma|le|la|avec|pour|dans)\b/i,
+        /\b(martin|bernard|dubois|moreau|laurent)\b/i
+      ],
+      'de': [
+        /\b(german|deutsch|liebe|mein|dein|und|mit|von|fur|auf)\b/i,
+        /\b(mueller|schmidt|schneider|weber|meyer)\b/i
+      ],
+      'it': [
+        /\b(italian|italiano|amore|mio|tuo|con|per|di|il|la)\b/i,
+        /\b(rossi|russo|ferrari|esposito|bianchi)\b/i
+      ],
+      'ko': [
+        /\b(korean|hangul|oppa|saranghae|fighting|k-pop|seoul)\b/i,
+        /\b(kim|lee|park|choi|jung)\b/i
+      ],
+      'ja': [
+        /\b(japanese|nihongo|arigato|sayonara|konnichiwa|j-pop|tokyo)\b/i,
+        /\b(sato|suzuki|takahashi|tanaka|watanabe)\b/i
+      ],
+      'ru': [
+        /\b(russian|russkiy|moscow|saint petersburg|bolshoy)\b/i,
+        /\b(petrov|ivanov|sidorov|smirnov|kuznetsov)\b/i
+      ],
+      'zh': [
+        /\b(chinese|mandarin|beijing|shanghai|guangzhou|c-pop)\b/i,
+        /\b(wang|li|zhang|liu|chen)\b/i
+      ],
+      'ar': [
+        /\b(arabic|arab|habibi|alhamdulillah|inshallah|wallah)\b/i,
+        /\b(mohammed|ahmed|ali|hassan|omar)\b/i
+      ]
+    };
+
+    for (const [lang, regexList] of Object.entries(patterns)) {
+      for (const regex of regexList) {
+        if (regex.test(text)) {
+          return lang;
+        }
+      }
+    }
+
+    // Common English patterns
+    if (/\b(the|and|or|but|with|from|for|of|in|on|at|to|by|is|are|was|were|love|you|me|my|your)\b/i.test(text)) {
+      return 'en';
+    }
+
+    return 'en';
+  }
+
+  private getLanguageFromMarket(market: string): string {
+    const marketLanguageMap: { [key: string]: string } = {
+      'US': 'en', 'GB': 'en', 'CA': 'en', 'AU': 'en', 'NZ': 'en', 'IE': 'en',
+      'ES': 'es', 'MX': 'es', 'AR': 'es', 'CO': 'es', 'CL': 'es', 'PE': 'es',
+      'FR': 'fr', 'BE': 'fr', 'CH': 'fr',
+      'DE': 'de', 'AT': 'de',
+      'IT': 'it',
+      'BR': 'pt', 'PT': 'pt',
+      'JP': 'ja',
+      'KR': 'ko',
+      'CN': 'zh', 'HK': 'zh', 'TW': 'zh',
+      'RU': 'ru',
+      'IN': 'hi', // Default for India, but could be any Indian language
+      'PK': 'ur',
+      'BD': 'bn',
+      'TR': 'tr',
+      'SA': 'ar', 'AE': 'ar', 'EG': 'ar',
+      'IL': 'he',
+      'GR': 'el',
+      'NL': 'nl',
+      'SE': 'sv',
+      'NO': 'no',
+      'DK': 'da',
+      'FI': 'fi',
+      'PL': 'pl',
+      'CZ': 'cs',
+      'HU': 'hu'
+    };
+
+    return marketLanguageMap[market] || 'en';
   }
 
   private isTrackLikelyInLanguage(track: Track, language: string): boolean {
     const artistNames = track.artists.map(a => a.name.toLowerCase()).join(' ');
     const trackName = track.name.toLowerCase();
+    const albumName = track.album.name.toLowerCase();
+    const allText = `${trackName} ${artistNames} ${albumName}`;
     
-    // Artist-based detection for Indian languages
+    // Enhanced artist-based detection for Indian languages
     const languageArtists: { [key: string]: string[] } = {
-      'hi': ['arijit singh', 'shreya ghoshal', 'kumar sanu', 'lata mangeshkar', 'kishore kumar', 'mohammad rafi', 'asha bhosle'],
-      'ta': ['yuvan shankar raja', 'anirudh', 'sid sriram', 'chinmayi', 'hariharan', 'unni krishnan'],
-      'te': ['devi sri prasad', 'ss thaman', 'mickey j meyer', 'keeravani', 'koti'],
-      'bn': ['hemanta mukherjee', 'kishore kumar', 'lata mangeshkar', 'asha bhosle'],
-      'pa': ['diljit dosanjh', 'sidhu moose wala', 'amrit maan', 'hardy sandhu'],
-      'ml': ['yesudas', 'chithra', 'mg sreekumar', 'sujatha'],
-      'kn': ['sonu nigam', 'shreya ghoshal', 'rajesh krishnan'],
-      'gu': ['falguni pathak', 'kirtidan gadhvi', 'hemant chauhan'],
+      'hi': [
+        'arijit singh', 'shreya ghoshal', 'kumar sanu', 'lata mangeshkar', 'kishore kumar', 
+        'mohammad rafi', 'asha bhosle', 'udit narayan', 'alka yagnik', 'sonu nigam',
+        'rahat fateh ali khan', 'armaan malik', 'tulsi kumar', 'neha kakkar', 'yo yo honey singh'
+      ],
+      'ta': [
+        'yuvan shankar raja', 'anirudh', 'sid sriram', 'chinmayi', 'hariharan', 'unni krishnan',
+        'karthik', 'shakthisree gopalan', 'haricharan', 'pradeep kumar', 'vijay yesudas'
+      ],
+      'te': [
+        'devi sri prasad', 'ss thaman', 'mickey j meyer', 'keeravani', 'koti', 
+        'anup rubens', 'gopi sundar', 'ravi basrur', 'vishal chandrasekhar'
+      ],
+      'bn': [
+        'hemanta mukherjee', 'kishore kumar', 'lata mangeshkar', 'asha bhosle', 'manna dey',
+        'sandhya mukherjee', 'shyamal mitra', 'nachiketa', 'srikanto acharya'
+      ],
+      'pa': [
+        'diljit dosanjh', 'sidhu moose wala', 'amrit maan', 'hardy sandhu', 'gurdas maan',
+        'kuldeep manak', 'amar singh chamkila', 'babbu maan', 'jazzy b'
+      ],
+      'gu': [
+        'falguni pathak', 'kirtidan gadhvi', 'hemant chauhan', 'atul purohit', 'alka yagnik',
+        'udit narayan', 'kavita krishnamurthy', 'mahesh kanodia'
+      ],
+      'kn': [
+        'sonu nigam', 'shreya ghoshal', 'rajesh krishnan', 'hemanth kumar', 'k j yesudas',
+        'p b sreenivas', 's janaki', 'vani jairam', 'chitra'
+      ],
+      'ml': [
+        'yesudas', 'chithra', 'mg sreekumar', 'sujatha', 'unni menon', 'hariharan',
+        'vineeth sreenivasan', 'job kurian', 'najim arshad'
+      ],
+      'mr': [
+        'lata mangeshkar', 'asha bhosle', 'suresh wadkar', 'anuradha paudwal', 'usha mangeshkar',
+        'mahendra kapoor', 'ajay atul', 'shankar mahadevan'
+      ],
+      'ur': [
+        'mehdi hassan', 'ghulam ali', 'nusrat fateh ali khan', 'abida parveen', 'farida khanum',
+        'iqbal bano', 'rahat fateh ali khan', 'atif aslam', 'rahat indori'
+      ]
     };
 
     if (languageArtists[language]) {
-      return languageArtists[language].some(artist => 
-        artistNames.includes(artist) || trackName.includes(artist)
-      );
+      const matchFound = languageArtists[language].some(artist => {
+        const artistWords = artist.split(' ');
+        return artistWords.every(word => allText.includes(word.toLowerCase()));
+      });
+      
+      if (matchFound) {
+        return true;
+      }
+    }
+
+    // Check for language-specific terms in track/album names
+    const languageTerms: { [key: string]: string[] } = {
+      'hi': ['bollywood', 'hindi', 'pyaar', 'ishq', 'dil', 'jaan', 'sanam', 'mohabbat', 'film'],
+      'ta': ['tamil', 'kollywood', 'kadhal', 'anbu', 'uyir', 'vaazhkai', 'paadal'],
+      'te': ['telugu', 'tollywood', 'prema', 'jeevitham', 'paata', 'cinema'],
+      'pa': ['punjabi', 'bhangra', 'jatt', 'munda', 'kudi', 'gal', 'pyaar'],
+      'bn': ['bengali', 'bangla', 'bhalobasha', 'gaan', 'jibon', 'mon'],
+      'gu': ['gujarati', 'garba', 'dandiya', 'raas', 'lok'],
+      'kn': ['kannada', 'sandalwood', 'prema', 'jeevana', 'haadu'],
+      'ml': ['malayalam', 'mollywood', 'sneham', 'jeevitham', 'paattu'],
+      'mr': ['marathi', 'lavani', 'natak', 'geet', 'jiwan'],
+      'ur': ['urdu', 'ghazal', 'qawwali', 'nazm', 'shayari', 'ishq', 'mohabbat']
+    };
+
+    if (languageTerms[language]) {
+      return languageTerms[language].some(term => allText.includes(term));
     }
 
     return false;
   }
 
   private detectLanguage(track: Track, market: string): string {
-    // Market-based language detection with improved accuracy
-    const marketLanguageMap: { [key: string]: string } = {
-      'US': 'en', 'GB': 'en', 'CA': 'en', 'AU': 'en',
-      'ES': 'es', 'MX': 'es', 'AR': 'es',
-      'FR': 'fr',
-      'DE': 'de',
-      'IT': 'it',
-      'BR': 'pt', 'PT': 'pt',
-      'JP': 'ja',
-      'KR': 'ko',
-      'CN': 'zh',
-      'RU': 'ru',
-      'IN': 'hi'
-    };
-
-    // Analyze track name, artist name, and album name for better detection
+    // Fallback basic detection method
     const textToAnalyze = `${track.name} ${track.artists.map(a => a.name).join(' ')} ${track.album.name}`.toLowerCase();
     
-    // Enhanced script-based detection with priority order
-    
-    // Check for Indian scripts first (most specific)
-    if (/[\u0900-\u097F]/.test(textToAnalyze)) return 'hi'; // Devanagari (Hindi, Marathi)
-    if (/[\u0B80-\u0BFF]/.test(textToAnalyze)) return 'ta'; // Tamil
-    if (/[\u0C00-\u0C7F]/.test(textToAnalyze)) return 'te'; // Telugu
-    if (/[\u0980-\u09FF]/.test(textToAnalyze)) return 'bn'; // Bengali/Assamese
-    if (/[\u0A80-\u0AFF]/.test(textToAnalyze)) return 'gu'; // Gujarati
-    if (/[\u0C80-\u0CFF]/.test(textToAnalyze)) return 'kn'; // Kannada
-    if (/[\u0D00-\u0D7F]/.test(textToAnalyze)) return 'ml'; // Malayalam
-    if (/[\u0A00-\u0A7F]/.test(textToAnalyze)) return 'pa'; // Gurmukhi (Punjabi)
-    if (/[\u0B00-\u0B7F]/.test(textToAnalyze)) return 'or'; // Odia
-    
-    // Arabic script (could be Arabic or Urdu)
-    if (/[\u0600-\u06FF]/.test(textToAnalyze)) {
-      // If market is India or Pakistan-adjacent, likely Urdu
-      if (market === 'IN') return 'ur';
-      return 'ar';
+    // Script-based detection
+    const scriptLanguage = this.detectLanguageByScript(textToAnalyze);
+    if (scriptLanguage !== 'en') {
+      return scriptLanguage;
     }
     
-    // East Asian scripts
-    if (/[\u3040-\u309F\u30A0-\u30FF]/.test(textToAnalyze)) return 'ja'; // Hiragana/Katakana
-    if (/[\uAC00-\uD7AF]/.test(textToAnalyze)) return 'ko'; // Korean
-    if (/[\u4E00-\u9FAF]/.test(textToAnalyze)) return 'zh'; // Chinese characters
-    
-    // Cyrillic
-    if (/[\u0400-\u04FF]/.test(textToAnalyze)) return 'ru';
-    
-    // European language diacritics with better specificity
-    if (/[àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ]/.test(textToAnalyze)) {
-      // French specific patterns
-      if (/[çæœù]/i.test(textToAnalyze) || /\b(le|la|les|un|une|des|du|de|et|à|avec)\b/i.test(textToAnalyze)) return 'fr';
-      
-      // Spanish specific patterns  
-      if (/[ñ]/i.test(textToAnalyze) || /\b(el|la|los|las|un|una|y|con|de|del|en)\b/i.test(textToAnalyze)) return 'es';
-      
-      // Portuguese specific patterns
-      if (/[ãõç]/i.test(textToAnalyze) || /\b(o|a|os|as|um|uma|e|com|de|do|da|em)\b/i.test(textToAnalyze)) return 'pt';
-      
-      // German specific patterns
-      if (/[äöüß]/i.test(textToAnalyze) || /\b(der|die|das|ein|eine|und|mit|von|für|auf)\b/i.test(textToAnalyze)) return 'de';
-      
-      // Italian specific patterns
-      if (/\b(il|la|lo|gli|le|un|una|e|con|di|del|della|in)\b/i.test(textToAnalyze)) return 'it';
+    // Pattern-based detection
+    const patternLanguage = this.detectLanguageByPatterns(textToAnalyze);
+    if (patternLanguage !== 'en') {
+      return patternLanguage;
     }
     
-    // Enhanced English detection patterns
-    if (/\b(the|and|or|but|with|from|for|of|in|on|at|to|by|is|are|was|were)\b/i.test(textToAnalyze)) {
-      return 'en';
-    }
-
-    // Market-based fallback with Indian market handling
-    if (market === 'IN') {
-      // For Indian market, prefer Hindi as default but could be any Indian language
-      return 'hi';
-    }
-    
-    return marketLanguageMap[market] || 'en';
+    // Market-based fallback
+    return this.getLanguageFromMarket(market);
   }
 
   private diversifyLanguages(tracks: Track[]): Track[] {

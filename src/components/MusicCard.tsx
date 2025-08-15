@@ -3,15 +3,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { useFavorites } from '@/hooks/useFavorites';
+import { franc } from 'franc-min';
 
 interface Track {
   id: string;
   name: string;
-  artists: Array<{ name: string }>;
+  artists: Array<{ 
+    name: string;
+    id: string;  // Added required id field
+    genres?: string[];
+  }>;
   album: {
     name: string;
     images: Array<{ url: string; height: number; width: number }>;
     release_date: string;
+    genres?: string[];
   };
   duration_ms: number;
   popularity: number;
@@ -20,7 +26,8 @@ interface Track {
     spotify: string;
   };
   explicit: boolean;
-  language?: string;
+  genres?: string[];
+  language?: string;  // Added optional language field
 }
 
 interface MusicCardProps {
@@ -53,6 +60,7 @@ export default function MusicCard({ track }: MusicCardProps) {
       appleMusic: `https://music.apple.com/search?term=${cleanQuery}`,
     };
   };
+
   const formatDuration = (ms: number) => {
     const minutes = Math.floor(ms / 60000);
     const seconds = ((ms % 60000) / 1000).toFixed(0);
@@ -70,8 +78,214 @@ export default function MusicCard({ track }: MusicCardProps) {
     return '/placeholder.svg';
   };
 
+  const getGenre = () => {
+    // Priority: track genres > artist genres > album genres > fallback based on other data
+    if (track.genres && track.genres.length > 0) {
+      return formatGenre(track.genres[0]);
+    }
+    
+    if (track.artists && track.artists.length > 0 && track.artists[0].genres && track.artists[0].genres.length > 0) {
+      return formatGenre(track.artists[0].genres[0]);
+    }
+    
+    if (track.album.genres && track.album.genres.length > 0) {
+      return formatGenre(track.album.genres[0]);
+    }
+    
+    // Fallback: try to infer genre from context
+    return inferGenreFromContext();
+  };
+
+  const formatGenre = (genre: string) => {
+    // Clean up genre names for display
+    const genreMap: { [key: string]: string } = {
+      'bollywood': 'Bollywood',
+      'indian': 'Indian',
+      'tamil': 'Tamil',
+      'telugu': 'Telugu',
+      'punjabi': 'Punjabi',
+      'bengali': 'Bengali',
+      'hindi': 'Hindi',
+      'k-pop': 'K-Pop',
+      'j-pop': 'J-Pop',
+      'r-n-b': 'R&B',
+      'hip-hop': 'Hip-Hop',
+      'rock': 'Rock',
+      'pop': 'Pop',
+      'electronic': 'Electronic',
+      'classical': 'Classical',
+      'jazz': 'Jazz',
+      'country': 'Country',
+      'folk': 'Folk',
+      'reggae': 'Reggae',
+      'blues': 'Blues',
+      'metal': 'Metal',
+      'punk': 'Punk',
+      'indie': 'Indie',
+      'alternative': 'Alternative',
+      'dance': 'Dance',
+      'house': 'House',
+      'techno': 'Techno',
+      'ambient': 'Ambient',
+      'soul': 'Soul',
+      'gospel': 'Gospel',
+      'funk': 'Funk',
+      'disco': 'Disco'
+    };
+    
+    const lowerGenre = genre.toLowerCase();
+    return genreMap[lowerGenre] || genre.charAt(0).toUpperCase() + genre.slice(1).toLowerCase();
+  };
+
+  const inferGenreFromContext = () => {
+    const trackText = `${track.name} ${track.artists.map(a => a.name).join(' ')} ${track.album.name}`.toLowerCase();
+    
+    // Language-based genre inference - check if language exists
+    if (track.language) {
+      const languageGenreMap: { [key: string]: string } = {
+        'hi': 'Bollywood',
+        'ta': 'Tamil Cinema',
+        'te': 'Telugu Cinema', 
+        'pa': 'Punjabi',
+        'bn': 'Bengali',
+        'gu': 'Gujarati',
+        'kn': 'Kannada',
+        'ml': 'Malayalam',
+        'mr': 'Marathi',
+        'ur': 'Ghazal',
+        'ko': 'K-Pop',
+        'ja': 'J-Pop',
+        'es': 'Latin',
+        'fr': 'French Pop',
+        'de': 'German Pop',
+        'it': 'Italian Pop',
+        'pt': 'Brazilian',
+        'ar': 'Arabic Pop',
+        'ru': 'Russian Pop',
+        'zh': 'C-Pop'
+      };
+      
+      if (languageGenreMap[track.language]) {
+        return languageGenreMap[track.language];
+      }
+    }
+    
+    // Pattern-based inference
+    if (/bollywood|hindi|bharat/i.test(trackText)) return 'Bollywood';
+    if (/tamil|kollywood/i.test(trackText)) return 'Tamil Cinema';
+    if (/telugu|tollywood/i.test(trackText)) return 'Telugu Cinema';
+    if (/punjabi|bhangra/i.test(trackText)) return 'Punjabi';
+    if (/bengali|rabindra/i.test(trackText)) return 'Bengali';
+    if (/classical|symphony|orchestra/i.test(trackText)) return 'Classical';
+    if (/jazz|swing/i.test(trackText)) return 'Jazz';
+    if (/rock|metal|punk/i.test(trackText)) return 'Rock';
+    if (/electronic|techno|house|edm/i.test(trackText)) return 'Electronic';
+    if (/country|folk/i.test(trackText)) return 'Country';
+    if (/hip.hop|rap|trap/i.test(trackText)) return 'Hip-Hop';
+    if (/reggae|ska/i.test(trackText)) return 'Reggae';
+    
+    // Default fallback
+    return 'Popular Music';
+  };
+
+  const detectLanguage = () => {
+    // Use the enhanced language detection if available from the service
+    if (track.language) {
+      return track.language;
+    }
+    
+    // Fallback: basic detection using franc-min with more text
+    const textToAnalyze = `${track.name} ${track.artists.map(a => a.name).join(' ')} ${track.album.name}`;
+    
+    // Only use franc if we have enough text (at least 10 characters)
+    if (textToAnalyze.length >= 10) {
+      try {
+        const detectedLang = franc(textToAnalyze);
+        
+        // Convert franc-min codes to our standard codes
+        const francToStandard: { [key: string]: string } = {
+          'eng': 'en',
+          'spa': 'es', 
+          'fra': 'fr',
+          'deu': 'de',
+          'ita': 'it',
+          'por': 'pt',
+          'jpn': 'ja',
+          'kor': 'ko',
+          'cmn': 'zh',
+          'arb': 'ar',
+          'hin': 'hi',
+          'tam': 'ta',
+          'tel': 'te',
+          'ben': 'bn',
+          'mar': 'mr',
+          'guj': 'gu',
+          'kan': 'kn',
+          'mal': 'ml',
+          'pan': 'pa',
+          'ori': 'or',
+          'asm': 'as',
+          'urd': 'ur',
+          'rus': 'ru'
+        };
+        
+        return francToStandard[detectedLang] || 'en';
+      } catch (error) {
+        console.warn('Language detection failed:', error);
+      }
+    }
+    
+    // Final fallback based on script detection
+    return detectLanguageByScript(textToAnalyze) || 'en';
+  };
+
+  const detectLanguageByScript = (text: string): string | null => {
+    // Script-based detection for non-Latin scripts
+    if (/[\u0900-\u097F]/.test(text)) return 'hi'; // Devanagari
+    if (/[\u0B80-\u0BFF]/.test(text)) return 'ta'; // Tamil
+    if (/[\u0C00-\u0C7F]/.test(text)) return 'te'; // Telugu
+    if (/[\u0980-\u09FF]/.test(text)) return 'bn'; // Bengali
+    if (/[\u0A80-\u0AFF]/.test(text)) return 'gu'; // Gujarati
+    if (/[\u0C80-\u0CFF]/.test(text)) return 'kn'; // Kannada
+    if (/[\u0D00-\u0D7F]/.test(text)) return 'ml'; // Malayalam
+    if (/[\u0A00-\u0A7F]/.test(text)) return 'pa'; // Punjabi
+    if (/[\u0B00-\u0B7F]/.test(text)) return 'or'; // Odia
+    if (/[\u0600-\u06FF]/.test(text)) return 'ur'; // Arabic script (could be Urdu)
+    if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) return 'ja'; // Japanese
+    if (/[\uAC00-\uD7AF]/.test(text)) return 'ko'; // Korean
+    if (/[\u4E00-\u9FAF]/.test(text)) return 'zh'; // Chinese
+    if (/[\u0400-\u04FF]/.test(text)) return 'ru'; // Cyrillic
+    
+    return null; // No non-Latin script detected
+  };
+
   const getLanguageName = (code?: string) => {
+    const detectedCode = code || detectLanguage();
+    
     const languageMap: { [key: string]: string } = {
+      'eng': 'English',
+      'spa': 'Spanish',  
+      'fra': 'French',
+      'deu': 'German',
+      'ita': 'Italian',
+      'por': 'Portuguese',
+      'jpn': 'Japanese',
+      'kor': 'Korean',
+      'cmn': 'Chinese',
+      'arb': 'Arabic',
+      'hin': 'Hindi',
+      'tam': 'Tamil',
+      'tel': 'Telugu',
+      'ben': 'Bengali',
+      'mar': 'Marathi',
+      'guj': 'Gujarati',
+      'kan': 'Kannada',
+      'mal': 'Malayalam',
+      'pan': 'Punjabi',
+      'ori': 'Odia',
+      'asm': 'Assamese',
+      'urd': 'Urdu',
+      'rus': 'Russian',
       'en': 'English',
       'es': 'Spanish',
       'fr': 'French',
@@ -96,9 +310,10 @@ export default function MusicCard({ track }: MusicCardProps) {
       'ur': 'Urdu',
       'ru': 'Russian'
     };
-    return languageMap[code || 'en'] || 'Unknown';
+    
+    return languageMap[detectedCode] || 'English';
   };
-
+  
   return (
     <div className="music-card bg-gradient-card backdrop-blur-sm rounded-2xl border border-border/50 animate-fade-in overflow-hidden shadow-card glow-accent hover:glow-primary transition-all duration-500">
       <div className="flex flex-col md:flex-row min-h-[400px]">
@@ -182,15 +397,15 @@ export default function MusicCard({ track }: MusicCardProps) {
               </div>
               
               <div className="bg-card/50 backdrop-blur-sm border border-border/30 rounded-lg p-3 text-center hover:bg-card/70 transition-colors">
-                <Headphones className="w-4 h-4 text-primary mx-auto mb-1" />
-                <span className="text-muted-foreground text-xs uppercase tracking-wider block">Content</span>
-                <span className="text-primary font-bold text-sm">{track.explicit ? 'Explicit' : 'Clean'}</span>
+                <Music className="w-4 h-4 text-primary mx-auto mb-1" />
+                <span className="text-muted-foreground text-xs uppercase tracking-wider block">Genre</span>
+                <span className="text-primary font-bold text-sm">{getGenre()}</span>
               </div>
 
               <div className="bg-card/50 backdrop-blur-sm border border-border/30 rounded-lg p-3 text-center hover:bg-card/70 transition-colors">
                 <Languages className="w-4 h-4 text-primary mx-auto mb-1" />
                 <span className="text-muted-foreground text-xs uppercase tracking-wider block">Language</span>
-                <span className="text-primary font-bold text-sm">{getLanguageName(track.language)}</span>
+                <span className="text-primary font-bold text-sm">{getLanguageName()}</span>
               </div>
             </div>
           </div>
