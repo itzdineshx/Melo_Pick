@@ -112,12 +112,12 @@ const Index = () => {
       
       <Header onFiltersChange={handleFiltersChange} currentFilters={filters} />
       
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-2 relative z-10">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 relative z-10">
         {/* Hero Section */}
         <div className="text-center max-w-4xl mx-auto">
           {/* Large Music Icon with enhanced styling */}
-          <div className="mb-3">
-            <div className="relative w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3">
+          <div className="mb-8">
+            <div className="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-6">
               <div className="absolute inset-0 bg-gradient-primary rounded-full blur-lg opacity-50 pulse-beat" />
               <div className="relative w-full h-full bg-gradient-primary rounded-full flex items-center justify-center vinyl-spin glow-primary pulse-beat">
                 <Music2 className="w-3/5 h-3/5 text-primary-foreground" />
@@ -126,37 +126,34 @@ const Index = () => {
           </div>
           
           {/* Main Title with enhanced typography */}
-          <div className="mb-3">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-heading font-black bg-gradient-primary bg-clip-text text-transparent mb-2 tracking-tight leading-none">
+          <div className="mb-8">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-heading font-black bg-gradient-primary bg-clip-text text-transparent mb-4 tracking-tight leading-none">
               MELOPICK
             </h1>
             <div className="w-24 h-1 bg-gradient-primary mx-auto rounded-full" />
           </div>
           
           {/* Enhanced Subtitle */}
-          <div className="mb-4">
-            <p className="text-foreground/90 text-base sm:text-lg md:text-xl mb-2 max-w-2xl mx-auto font-medium">
+          <div className="mb-12">
+            <p className="text-foreground/90 text-lg sm:text-xl md:text-2xl mb-2 max-w-2xl mx-auto font-medium">
               Your next favorite song is just a click away
-            </p>
-            <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto">
-              Discover amazing music tailored to your taste with intelligent recommendations
             </p>
           </div>
           
           {/* Enhanced CTA Button */}
-          <div className="mb-6">
+          <div className="mb-12">
             <div className="relative inline-block">
               <div className="absolute inset-0 bg-gradient-primary rounded-xl blur-lg opacity-50 pulse-beat" />
               <Button
                 onClick={() => getRandomTrack()}
                 disabled={isLoading}
-                className="relative btn-hero text-base px-6 py-3 h-auto w-full sm:w-auto rounded-xl font-bold shadow-primary min-w-[200px] group"
+                className="relative btn-hero text-base sm:text-lg px-8 py-4 h-auto w-full sm:w-auto rounded-xl font-bold shadow-primary min-w-[240px] group"
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    <Loader2 className="w-5 h-5 mr-3 animate-spin" />
                     {/* Sound Wave Visualization during loading */}
-                    <div className="flex items-center gap-1 mr-2">
+                    <div className="flex items-center gap-1 mr-3">
                       <div className="w-1 bg-primary-foreground/60 sound-bar-1 rounded-full"></div>
                       <div className="w-1 bg-primary-foreground/60 sound-bar-2 rounded-full"></div>
                       <div className="w-1 bg-primary-foreground/60 sound-bar-3 rounded-full"></div>
@@ -166,7 +163,7 @@ const Index = () => {
                   </>
                 ) : (
                   <>
-                    <Music2 className="w-5 h-5 mr-2 group-hover:pulse-beat-delayed" />
+                    <Music2 className="w-5 h-5 mr-3 group-hover:pulse-beat-delayed" />
                   </>
                 )}
                 {isLoading ? 'Finding Perfect Song...' : 'Discover Music'}
@@ -176,19 +173,18 @@ const Index = () => {
 
           {/* Current Track Display */}
           {currentTrack && (
-            <div id="current-song-card" className="max-w-3xl mx-auto px-2 animate-fade-in">
+            <div id="current-song-card" className="max-w-3xl mx-auto px-2 animate-fade-in mb-8">
               <MusicCard track={currentTrack} />
             </div>
           )}
 
           {/* Enhanced Footer */}
-          <div className="mt-4 text-muted-foreground text-xs px-2">
+          <div className="text-muted-foreground text-sm px-2">
             <div className="flex items-center justify-center gap-2 mb-1">
-              <div className="w-1.5 h-1.5 bg-primary rounded-full pulse-beat" />
               <span>Powered by Spotify</span>
-              <div className="w-1.5 h-1.5 bg-primary rounded-full pulse-beat-delayed" />
+              <span>•</span>
+              <span>No repeats in your session</span>
             </div>
-            <p className="text-xs opacity-75">No repeats • Intelligent recommendations</p>
           </div>
         </div>
       </main>
