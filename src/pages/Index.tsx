@@ -165,7 +165,7 @@ const Index = () => {
                     <Music2 className="w-5 h-5 mr-3 group-hover:pulse-beat-delayed" />
                   </>
                 )}
-                {isLoading ? 'Finding Perfect Song...' : 'Discover Music'}
+                {isLoading ? 'Finding Perfect Song...' : 'Pick Music'}
               </Button>
             </div>
           </div>
