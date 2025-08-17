@@ -378,40 +378,31 @@ export default function MusicCard({ track }: MusicCardProps) {
             </div>
 
             {/* Compact Stats Grid - Horizontal Layout */}
-            <div className="bg-card/30 backdrop-blur-sm border border-border/20 rounded-xl p-4">
-              <div className="grid grid-cols-5 gap-4 text-center">
-                <div>
-                  <Calendar className="w-4 h-4 text-primary mx-auto mb-1" />
-                  <span className="text-muted-foreground text-xs uppercase tracking-wider block">YEAR</span>
-                  <span className="text-primary font-bold text-sm">{formatYear(track.album.release_date)}</span>
-                </div>
-                
-                <div>
-                  <Clock className="w-4 h-4 text-primary mx-auto mb-1" />
-                  <span className="text-muted-foreground text-xs uppercase tracking-wider block">DURATION</span>
-                  <span className="text-primary font-bold text-sm">{formatDuration(track.duration_ms)}</span>
-                </div>
-                
-                <div>
-                  <Volume2 className="w-4 h-4 text-primary mx-auto mb-1" />
-                  <span className="text-muted-foreground text-xs uppercase tracking-wider block">POPULARITY</span>
-                  <span className="text-primary font-bold text-sm">{track.popularity}/100</span>
-                </div>
-                
-                <div>
-                  <Music className="w-4 h-4 text-primary mx-auto mb-1" />
-                  <span className="text-muted-foreground text-xs uppercase tracking-wider block">GENRE</span>
-                  <span className="text-primary font-bold text-sm">{getGenre()}</span>
-                </div>
 
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                 <div>
-                  <Languages className="w-4 h-4 text-primary mx-auto mb-1" />
-                  <span className="text-muted-foreground text-xs uppercase tracking-wider block">LANGUAGE</span>
-                  <span className="text-primary font-bold text-sm">{getLanguageName()}</span>
+                <Calendar className="w-4 h-4 text-primary mx-auto mb-1" />
+                <p className="text-xs text-muted-foreground uppercase">Year</p>
+                <p className="font-bold">{formatYear(track.album.release_date)}</p>
                 </div>
-              </div>
+                <div>
+                <Clock className="w-4 h-4 text-primary mx-auto mb-1" />
+                <p className="text-xs text-muted-foreground uppercase">Duration</p>
+                <p className="font-bold">{formatDuration(track.duration_ms)}</p>
+                </div>
+                <div>
+                <Volume2 className="w-4 h-4 text-primary mx-auto mb-1" />
+                <p className="text-xs text-muted-foreground uppercase">Popularity</p>
+                <p className="font-bold">{track.popularity}/100</p>
+                </div>
+                <div>
+                <Languages className="w-4 h-4 text-primary mx-auto mb-1" />
+                <p className="text-xs text-muted-foreground uppercase">Language</p>
+                <p className="font-bold">{getLanguageName()}</p>
+                </div>
             </div>
-          </div>
+            </div>
+
 
           {/* Enhanced Audio Preview */}
           {track.preview_url && (
@@ -435,46 +426,33 @@ export default function MusicCard({ track }: MusicCardProps) {
 
           {/* Enhanced Listen On Section */}
           <div className="mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <ExternalLink className="w-4 h-4 text-primary" />
-              <p className="text-foreground font-semibold">Stream Now</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="border-green-500/50 text-green-400 hover:bg-green-500 hover:text-white flex items-center gap-3 px-4 py-3 h-auto backdrop-blur-sm bg-card/30 hover:shadow-lg transition-all group"
-                onClick={() => window.open(getStreamingLinks().spotify, '_blank')}
-              >
-                <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <span className="text-xs font-bold text-white">S</span>
-                </div>
-                <span className="font-medium">Spotify</span>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="border-red-500/50 text-red-400 hover:bg-red-500 hover:text-white flex items-center gap-3 px-4 py-3 h-auto backdrop-blur-sm bg-card/30 hover:shadow-lg transition-all group"
-                onClick={() => window.open(getStreamingLinks().youtubeMusic, '_blank')}
-              >
-                <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <span className="text-xs font-bold text-white">Y</span>
-                </div>
-                <span className="font-medium">YouTube</span>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="border-gray-400/50 text-gray-300 hover:bg-gray-800 hover:text-white flex items-center gap-3 px-4 py-3 h-auto backdrop-blur-sm bg-card/30 hover:shadow-lg transition-all group"
-                onClick={() => window.open(getStreamingLinks().appleMusic, '_blank')}
-              >
-                <div className="w-6 h-6 rounded-full bg-black border border-gray-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <span className="text-xs font-bold text-white">A</span>
-                </div>
-                <span className="font-medium">Apple</span>
-              </Button>
+            <div className="grid grid-cols-3 gap-3">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center justify-center h-12 rounded-xl bg-card/40 hover:bg-green-500 hover:text-white transition-all"
+                    onClick={() => window.open(getStreamingLinks().spotify, '_blank')}
+                >
+                    <img src="/logo/spotify.svg" alt="Spotify" className="h-6 w-6" />
+                </Button>
+
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center justify-center h-12 rounded-xl bg-card/40 hover:bg-red-500 hover:text-white transition-all"
+                    onClick={() => window.open(getStreamingLinks().youtubeMusic, '_blank')}
+                >
+                    <img src="/logo/youtube-music.svg" alt="YouTube Music" className="h-6 w-6" />
+                </Button>
+
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center justify-center h-12 rounded-xl bg-card/40 hover:bg-red-400 hover:text-white transition-all"
+                    onClick={() => window.open(getStreamingLinks().appleMusic, '_blank')}
+                >
+                    <img src="/logo/Apple_Music_icon.png" alt="Apple Music" className="h-6 w-6" />
+                </Button>
             </div>
           </div>
 
