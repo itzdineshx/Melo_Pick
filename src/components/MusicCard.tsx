@@ -377,36 +377,38 @@ export default function MusicCard({ track }: MusicCardProps) {
               </div>
             </div>
 
-            {/* Enhanced Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-              <div className="bg-card/50 backdrop-blur-sm border border-border/30 rounded-lg p-3 text-center hover:bg-card/70 transition-colors">
-                <Calendar className="w-4 h-4 text-primary mx-auto mb-1" />
-                <span className="text-muted-foreground text-xs uppercase tracking-wider block">Year</span>
-                <span className="text-primary font-bold text-sm">{formatYear(track.album.release_date)}</span>
-              </div>
-              
-              <div className="bg-card/50 backdrop-blur-sm border border-border/30 rounded-lg p-3 text-center hover:bg-card/70 transition-colors">
-                <Clock className="w-4 h-4 text-primary mx-auto mb-1" />
-                <span className="text-muted-foreground text-xs uppercase tracking-wider block">Duration</span>
-                <span className="text-primary font-bold text-sm">{formatDuration(track.duration_ms)}</span>
-              </div>
-              
-              <div className="bg-card/50 backdrop-blur-sm border border-border/30 rounded-lg p-3 text-center hover:bg-card/70 transition-colors">
-                <Volume2 className="w-4 h-4 text-primary mx-auto mb-1" />
-                <span className="text-muted-foreground text-xs uppercase tracking-wider block">Popularity</span>
-                <span className="text-primary font-bold text-sm">{track.popularity}/100</span>
-              </div>
-              
-              <div className="bg-card/50 backdrop-blur-sm border border-border/30 rounded-lg p-3 text-center hover:bg-card/70 transition-colors">
-                <Music className="w-4 h-4 text-primary mx-auto mb-1" />
-                <span className="text-muted-foreground text-xs uppercase tracking-wider block">Genre</span>
-                <span className="text-primary font-bold text-sm">{getGenre()}</span>
-              </div>
+            {/* Compact Stats Grid - Horizontal Layout */}
+            <div className="bg-card/30 backdrop-blur-sm border border-border/20 rounded-xl p-4">
+              <div className="grid grid-cols-5 gap-4 text-center">
+                <div>
+                  <Calendar className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <span className="text-muted-foreground text-xs uppercase tracking-wider block">YEAR</span>
+                  <span className="text-primary font-bold text-sm">{formatYear(track.album.release_date)}</span>
+                </div>
+                
+                <div>
+                  <Clock className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <span className="text-muted-foreground text-xs uppercase tracking-wider block">DURATION</span>
+                  <span className="text-primary font-bold text-sm">{formatDuration(track.duration_ms)}</span>
+                </div>
+                
+                <div>
+                  <Volume2 className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <span className="text-muted-foreground text-xs uppercase tracking-wider block">POPULARITY</span>
+                  <span className="text-primary font-bold text-sm">{track.popularity}/100</span>
+                </div>
+                
+                <div>
+                  <Music className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <span className="text-muted-foreground text-xs uppercase tracking-wider block">GENRE</span>
+                  <span className="text-primary font-bold text-sm">{getGenre()}</span>
+                </div>
 
-              <div className="bg-card/50 backdrop-blur-sm border border-border/30 rounded-lg p-3 text-center hover:bg-card/70 transition-colors">
-                <Languages className="w-4 h-4 text-primary mx-auto mb-1" />
-                <span className="text-muted-foreground text-xs uppercase tracking-wider block">Language</span>
-                <span className="text-primary font-bold text-sm">{getLanguageName()}</span>
+                <div>
+                  <Languages className="w-4 h-4 text-primary mx-auto mb-1" />
+                  <span className="text-muted-foreground text-xs uppercase tracking-wider block">LANGUAGE</span>
+                  <span className="text-primary font-bold text-sm">{getLanguageName()}</span>
+                </div>
               </div>
             </div>
           </div>
