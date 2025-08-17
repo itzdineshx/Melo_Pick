@@ -79,6 +79,11 @@ class SpotifyService {
   }
 
   private getCacheKey(method: string, params: any): string {
+    // Add randomization to cache key for language-specific searches
+    if (params.language && this.isIndianLanguage(params.language)) {
+      const timeBasedSeed = Math.floor(Date.now() / (1000 * 60 * 30)); // Changes every 30 minutes
+      return `${method}_${JSON.stringify(params)}_${timeBasedSeed}`;
+    }
     return `${method}_${JSON.stringify(params)}`;
   }
 
@@ -183,8 +188,12 @@ class SpotifyService {
   async getRecommendations(filters: RecommendationFilters = {}): Promise<Track> {
     const cacheKey = this.getCacheKey('recommendations', filters);
     const cached = this.getFromCache<Track[]>(cacheKey);
-    
-    if (cached && cached.length > 0) {
+
+    // Reduce cache hit rate for language searches to increase variety
+    const shouldUseCache = cached && cached.length > 0 && 
+      (!filters.language || Math.random() > 0.7); // 30% cache hit rate for language searches
+
+    if (shouldUseCache) {
       const randomIndex = Math.floor(Math.random() * cached.length);
       return cached[randomIndex];
     }
@@ -459,220 +468,480 @@ class SpotifyService {
   }
 
   private async getIndianLanguageTrack(filters: RecommendationFilters, token: string): Promise<Track> {
-    // Enhanced language-specific search with broader artist coverage
-    const languageSearchTerms: { [key: string]: string[] } = {
+    // Enhanced search strategy with maximum variety covering trending hits, underrated gems, and everything in between
+    const languageSearchStrategies: { [key: string]: string[][] } = {
       'hi': [
-        'bollywood', 'hindi', 'भारतीय', 'फिल्म', 'गाना', 'संगीत',
-        // Popular artists
-        'arijit singh', 'shreya ghoshal', 'kumar sanu', 'lata mangeshkar', 'kishore kumar',
-        'sonu nigam', 'neha kakkar', 'armaan malik', 'atif aslam', 'rahat fateh ali khan',
-        // Underrated/Album artists
-        'hariharan', 'kailash kher', 'shaan', 'sunidhi chauhan', 'mohit chauhan',
-        'kaushiki chakraborty', 'shankar mahadevan', 'kk', 'papon', 'rekha bhardwaj',
-        // Terms for variety
-        'classical', 'sufi', 'qawwali', 'ghazal', 'folk', 'indie', 'fusion'
+        // Strategy 1: Trending & Popular hits
+        ['bollywood hits 2024', 'hindi trending songs', 'bollywood chart toppers'],
+        ['arijit singh hits', 'shreya ghoshal popular', 'armaan malik trending'],
+        ['hindi viral songs', 'bollywood dance hits', 'latest hindi songs'],
+        
+        // Strategy 2: Classic hits from different eras
+        ['90s bollywood hits', '2000s hindi songs', '80s bollywood classics'],
+        ['kishore kumar hits', 'lata mangeshkar classics', 'mohammed rafi songs'],
+        ['kumar sanu romantic', 'udit narayan hits', 'alka yagnik songs'],
+        
+        // Strategy 3: Underrated & Independent
+        ['hindi indie songs', 'independent hindi artist', 'non film hindi'],
+        ['underground hindi', 'hindi band music', 'indie bollywood'],
+        ['regional hindi', 'folk hindi fusion', 'classical hindi modern'],
+        
+        // Strategy 4: Album deep cuts & variety
+        ['bollywood album songs', 'hindi soundtrack deep cuts', 'film music compilation'],
+        ['sufi hindi', 'qawwali modern', 'ghazal contemporary'],
+        ['devotional hindi', 'bhajan modern', 'spiritual hindi'],
+        
+        // Strategy 5: Genre variety
+        ['hindi rock', 'bollywood electronic', 'hindi jazz fusion'],
+        ['punjabi hindi fusion', 'haryanvi bollywood', 'rajasthani hindi']
       ],
       'ta': [
-        'tamil', 'kollywood', 'தமிழ்', 'படல்', 'இசை',
-        // Popular composers/singers
-        'yuvan shankar raja', 'anirudh', 'ar rahman', 'sid sriram', 'chinmayi',
-        'harris jayaraj', 'gv prakash', 'vijay antony', 'imman', 'santhosh narayanan',
-        // Album/independent artists
-        'hariharan', 'karthik', 'shankar mahadevan', 'unni krishnan', 'tippu',
-        'pradeep kumar', 'haricharan', 'shakthisree gopalan', 'bombay jayashri',
-        // Variety terms
-        'carnatic', 'devotional', 'folk', 'gaana', 'kuthu', 'melody'
+        // Strategy 1: Current trending & hits
+        ['tamil hits 2024', 'kollywood trending', 'tamil viral songs'],
+        ['anirudh latest hits', 'ar rahman trending', 'yuvan new songs'],
+        ['sid sriram popular', 'tamil dance hits', 'kollywood chart'],
+        
+        // Strategy 2: Classic & Golden era
+        ['90s tamil hits', 'ilayaraja classics', 'ar rahman 90s'],
+        ['spb hits', 'kj yesudas tamil', 'janaki tamil songs'],
+        ['harris jayaraj hits', 'vidyasagar classics', 'deva hits'],
+        
+        // Strategy 3: Independent & underrated
+        ['tamil indie music', 'independent tamil artist', 'tamil band'],
+        ['chennai indie scene', 'tamil underground', 'non film tamil'],
+        ['tamil folk fusion', 'gaana independent', 'kuthu underground'],
+        
+        // Strategy 4: Album tracks & deep cuts
+        ['tamil album songs', 'kollywood soundtrack', 'tamil compilation'],
+        ['carnatic fusion tamil', 'devotional tamil modern', 'bhajan tamil'],
+        ['murugan songs modern', 'temple music contemporary'],
+        
+        // Strategy 5: Regional & genre variety
+        ['kongu tamil songs', 'madras tamil music', 'salem tamil'],
+        ['tamil rock', 'tamil electronic', 'tamil jazz']
       ],
       'te': [
-        'telugu', 'tollywood', 'తెలుగు', 'సినిమా', 'పాట',
-        // Popular music directors
-        'devi sri prasad', 'ss thaman', 'mickey j meyer', 'keeravani', 'anup rubens',
-        'gopi sundar', 'ravi basrur', 'vishal chandrasekhar', 'rockstar devi',
-        // Singers
-        'sp balasubrahmanyam', 'kj yesudas', 'chitra', 'shreya ghoshal', 'sid sriram',
-        'sunitha', 'karthik', 'hemachandra', 'rita', 'mohana bhogaraju',
-        // Variety
-        'classical', 'devotional', 'folk', 'indie', 'fusion'
-      ],
-      'bn': [
-        'bengali', 'বাংলা', 'গান', 'সংগীত',
-        'rabindra sangeet', 'nazrul geeti', 'modern bengali', 'adhunik',
-        // Classical singers
-        'hemanta mukherjee', 'kishore kumar', 'lata mangeshkar', 'manna dey',
-        // Modern artists
-        'nachiketa', 'srikanto acharya', 'iman chakraborty', 'anupam roy',
-        'shreya ghoshal', 'arijit singh', 'shaan', 'rupankar bagchi',
-        // Variety
-        'folk', 'baul', 'kirtan', 'devotional', 'fusion'
-      ],
-      'gu': [
-        'gujarati', 'ગુજરાતી', 'ગીત', 'લોકગીત',
-        'garba', 'dandiya', 'ras', 'folk', 'devotional',
-        // Popular artists
-        'falguni pathak', 'kirtidan gadhvi', 'hemant chauhan', 'atul purohit',
-        'parthiv gohil', 'shaan', 'aditya gadhvi', 'osman mir',
-        // Traditional/underrated
-        'bhikhudan gadhvi', 'praful dave', 'mukesh barot', 'lalitya munshaw',
-        'classical', 'bhajan', 'lok geet', 'sugam sangeet'
-      ],
-      'kn': [
-        'kannada', 'ಕನ್ನಡ', 'ಹಾಡು', 'ಸಂಗೀತ',
-        'sandalwood', 'karnataka', 'classical', 'carnatic',
-        // Music directors
-        'v harikrishna', 'raghu dixit', 'arjun janya', 'jesse gift', 'ravi basrur',
-        // Singers
-        'sonu nigam', 'shreya ghoshal', 'rajesh krishnan', 'vijay prakash',
-        'kunal ganjawala', 'hemanth kumar', 'armaan malik', 'chinmayi',
-        // Traditional
-        'folk', 'devotional', 'bhavageete', 'sugama sangeetha'
-      ],
-      'ml': [
-        'malayalam', 'മലയാളം', 'പാട്ട്', 'സംഗീതം',
-        'mollywood', 'kerala', 'classical', 'carnatic',
-        // Music directors
-        'gopi sundar', 'bijibal', 'shaan rahman', 'deepak dev', 'ouseppachan',
-        // Singers
-        'yesudas', 'chithra', 'mg sreekumar', 'sujatha', 'unni menon',
-        'vineeth sreenivasan', 'hariharan', 'shreya ghoshal', 'karthik',
-        // Traditional
-        'folk', 'devotional', 'oppana', 'mappilapattu'
+        // Trending & Popular
+        ['telugu hits 2024', 'tollywood trending', 'telugu viral songs'],
+        ['devi sri prasad hits', 'thaman popular', 'telugu dance numbers'],
+        
+        // Classic hits
+        ['90s telugu hits', 'keeravani classics', 'spb telugu hits'],
+        ['ilayaraja telugu', 'telugu golden hits', 'old telugu songs'],
+        
+        // Independent & underrated
+        ['telugu indie music', 'independent telugu', 'telugu band'],
+        ['hyderabad indie', 'telugu underground', 'non film telugu'],
+        
+        // Albums & variety
+        ['telugu album songs', 'devotional telugu', 'folk telugu'],
+        ['carnatic telugu', 'classical telugu modern', 'fusion telugu']
       ],
       'pa': [
-        'punjabi', 'ਪੰਜਾਬੀ', 'ਗੀਤ', 'ਸੰਗੀਤ',
-        'bhangra', 'folk', 'sufi', 'punjab',
-        // Popular artists
-        'diljit dosanjh', 'sidhu moose wala', 'amrit maan', 'hardy sandhu',
-        'gurdas maan', 'kuldeep manak', 'amar singh chamkila', 'babbu maan',
-        // Underrated/traditional
-        'jazzy b', 'miss pooja', 'manpreet sandhu', 'harbhajan mann',
-        'classical', 'devotional', 'gurbani', 'qawwali'
+        // Trending
+        ['punjabi hits 2024', 'punjabi trending', 'punjabi viral'],
+        ['sidhu moose wala', 'diljit dosanjh hits', 'punjabi chart'],
+        
+        // Classic & traditional
+        ['punjabi folk songs', 'gurbani modern', 'sufi punjabi'],
+        ['bhangra traditional', 'punjabi devotional', 'classical punjabi'],
+        
+        // Independent
+        ['punjabi indie', 'underground punjabi', 'punjabi band'],
+        ['new punjabi artist', 'independent punjabi singer'],
+        
+        // Variety
+        ['punjabi album songs', 'punjabi fusion', 'punjabi rock']
       ],
-      'or': [
-        'odia', 'ଓଡ଼ିଆ', 'ଗୀତ', 'ସଙ୍ଗୀତ',
-        'ollywood', 'odisha', 'classical', 'folk',
-        // Artists
-        'humane sagar', 'asima panda', 'sricharan', 'abhijit majumdar',
-        'ira mohanty', 'lisa mishra', 'antara chakraborty',
-        // Traditional
-        'bhajan', 'devotional', 'jagannath', 'odissi'
+      'bn': [
+        // Trending & popular
+        ['bengali hits 2024', 'bangla trending', 'bengali viral'],
+        ['arijit singh bengali', 'shreya ghoshal bengali', 'bengali chart'],
+        
+        // Classical & traditional
+        ['rabindra sangeet', 'nazrul geeti', 'adhunik bengali'],
+        ['baul songs modern', 'bengali classical', 'devotional bengali'],
+        
+        // Independent
+        ['bengali indie', 'kolkata band', 'bengali underground'],
+        ['independent bengali', 'new bengali artist'],
+        
+        // Variety
+        ['bengali album songs', 'bengali folk fusion', 'bengali rock']
       ],
-      'ur': [
-        'urdu', 'اردو', 'غزل', 'قوالی',
-        'ghazal', 'qawwali', 'nazm', 'shayari', 'sufi',
-        // Classical masters
-        'mehdi hassan', 'ghulam ali', 'nusrat fateh ali khan', 'abida parveen',
-        'farida khanum', 'iqbal bano', 'rahat fateh ali khan',
-        // Modern artists
-        'atif aslam', 'rahat indori', 'hariharan', 'pankaj udhas',
-        'classical', 'devotional', 'kalam'
+      'gu': [
+        ['gujarati hits 2024', 'gujarati trending', 'garba songs'],
+        ['dandiya hits', 'navratri songs', 'gujarati devotional'],
+        ['gujarati indie', 'gujarati folk', 'gujarati band'],
+        ['gujarati album songs', 'gujarati classical', 'bhajan gujarati']
+      ],
+      'kn': [
+        ['kannada hits 2024', 'sandalwood trending', 'kannada viral'],
+        ['kannada classical', 'bhavageete', 'sugama sangeetha'],
+        ['kannada indie', 'bangalore band', 'independent kannada'],
+        ['kannada album songs', 'devotional kannada', 'folk kannada']
+      ],
+      'ml': [
+        ['malayalam hits 2024', 'mollywood trending', 'malayalam viral'],
+        ['malayalam classical', 'carnatic malayalam', 'devotional malayalam'],
+        ['malayalam indie', 'kochi band', 'independent malayalam'],
+        ['malayalam album songs', 'mappilapattu', 'kerala folk']
       ],
       'mr': [
-        'marathi', 'मराठी', 'गाणे', 'संगीत',
-        'maharashtra', 'lavani', 'folk', 'devotional',
-        // Music directors
-        'ajay atul', 'shankar mahadevan', 'amit raj', 'rohit raut',
-        // Singers
-        'lata mangeshkar', 'asha bhosle', 'suresh wadkar', 'anuradha paudwal',
-        'mahesh kale', 'anand shinde', 'vaishali samant', 'savani ravindra',
-        // Traditional
-        'powada', 'abhang', 'bhajan', 'classical'
+        ['marathi hits 2024', 'marathi trending', 'lavani songs'],
+        ['marathi classical', 'abhang', 'powada'],
+        ['marathi indie', 'pune band', 'independent marathi'],
+        ['marathi album songs', 'devotional marathi', 'folk marathi']
+      ],
+      'ur': [
+        ['urdu hits 2024', 'urdu trending', 'ghazal modern'],
+        ['qawwali contemporary', 'urdu classical', 'nazm modern'],
+        ['urdu indie', 'independent urdu', 'urdu band'],
+        ['urdu album songs', 'sufi urdu', 'devotional urdu']
+      ],
+      'or': [
+        ['odia hits 2024', 'ollywood trending', 'odia viral'],
+        ['odia classical', 'jagannath bhajan', 'devotional odia'],
+        ['odia indie', 'bhubaneswar band', 'independent odia'],
+        ['odia album songs', 'folk odia', 'tribal odia']
       ],
       'as': [
-        'assamese', 'অসমীয়া', 'গীত', 'সংগীত',
-        'assam', 'northeast', 'folk', 'classical',
-        // Artists
-        'bhupen hazarika', 'papon', 'zubeen garg', 'angaraag mahanta',
-        'tarali sarma', 'dipali barthakur', 'khagen mahanta',
-        // Traditional
-        'bihu', 'devotional', 'borgeet', 'kamrupi'
+        ['assamese hits 2024', 'assamese trending', 'bihu songs'],
+        ['borgeet', 'assamese classical', 'devotional assamese'],
+        ['assamese indie', 'guwahati band', 'northeast music'],
+        ['assamese album songs', 'folk assamese', 'tribal assam']
       ]
     };
 
-    const searchTerms = languageSearchTerms[filters.language!] || ['indian', 'music', filters.language];
-    
-    // Add artist filter if specified
-    if (filters.artist) {
-      searchTerms.unshift(filters.artist);
-    }
-
-    // Add genre if specified
-    if (filters.genre) {
-      searchTerms.push(filters.genre);
-    }
-
-    let yearFilter = '';
-    if (filters.yearRange) {
-      const [minYear, maxYear] = filters.yearRange;
-      yearFilter = ` year:${minYear}-${maxYear}`;
-    }
-
-    // Try multiple search combinations for better results
-    const searchCombinations = [
-      searchTerms.slice(0, 3).join(' ') + yearFilter,
-      searchTerms.slice(1, 4).join(' ') + yearFilter,
-      (searchTerms[0] + ' ' + filters.language + ' music') + yearFilter,
+    const searchStrategies = languageSearchStrategies[filters.language!] || [
+      [`${filters.language} music trending`, `${filters.language} songs popular`, `${filters.language} hits`]
     ];
 
-    // Enhanced search strategy with multiple methods for maximum variety
-    for (let attempt = 0; attempt < searchCombinations.length; attempt++) {
-      const searchQuery = searchCombinations[attempt];
-      
-      try {
-        // Use different search strategies for better variety
-        const searchParams: any = {
-          q: searchQuery,
-          type: 'track',
-          limit: 50,
-          market: 'IN', // Force Indian market for better language results
-          offset: Math.floor(Math.random() * 100) // Random offset for variety
-        };
+    // Enhanced search with maximum variety - mix of trending, classic, and underrated
+    const allCandidates: Track[] = [];
+    const usedArtists = new Set<string>();
+    const usedAlbums = new Set<string>();
+    const usedTracks = new Set<string>();
 
+    // Shuffle strategies to get random mix each time
+    const shuffledStrategies = [...searchStrategies].sort(() => Math.random() - 0.5);
+
+    // Try multiple search strategies with different approaches
+    for (const strategy of shuffledStrategies) {
+      for (const searchTerm of strategy) {
+        try {
+          // Use different search parameters for each attempt
+          const searchParams: any = {
+            q: searchTerm,
+            type: 'track',
+            limit: 50,
+            market: 'IN',
+            offset: Math.floor(Math.random() * 300) // Random offset for maximum variety
+          };
+
+          const response: any = await this.makeRequestWithRetry(
+            'https://api.spotify.com/v1/search',
+            {
+              headers: { Authorization: `Bearer ${token}` },
+              params: searchParams,
+            }
+          );
+
+          if (response.tracks?.items?.length > 0) {
+            // Filter tracks immediately for maximum diversity
+            const newTracks = response.tracks.items.filter((track: Track) => {
+              const artistName = track.artists[0]?.name;
+              const albumName = track.album.name;
+              const trackKey = `${track.name}-${artistName}`;
+              
+              // Skip if we already have this track, artist, or album
+              return !usedTracks.has(trackKey) && 
+                     !usedArtists.has(artistName) && 
+                     !usedAlbums.has(albumName);
+            });
+
+            // Add language detection
+            const tracksWithLanguage = await Promise.all(
+              newTracks.slice(0, 8).map(async (track: Track) => ({
+                ...track,
+                language: await this.detectLanguageEnhanced(track, 'IN', filters.language!)
+              }))
+            );
+
+            // Filter by target language
+            const languageFilteredTracks = tracksWithLanguage.filter(track => 
+              this.isTrackInTargetLanguage(track, filters.language!)
+            );
+
+            // Add to candidates and update used sets
+            languageFilteredTracks.forEach(track => {
+              allCandidates.push(track);
+              const trackKey = `${track.name}-${track.artists[0]?.name}`;
+              usedTracks.add(trackKey);
+              usedArtists.add(track.artists[0]?.name);
+              usedAlbums.add(track.album.name);
+            });
+
+            // Stop if we have enough variety
+            if (allCandidates.length >= 25) break;
+          }
+        } catch (error) {
+          console.error(`Search failed for term: ${searchTerm}`, error);
+          continue;
+        }
+      }
+      
+      if (allCandidates.length >= 20) break; // Enough variety from current strategy
+    }
+
+    // Additional search for underground artists if we need more variety
+    if (allCandidates.length < 20) {
+      const undergroundResults = await this.searchUndergroundArtists(filters.language!, token, usedArtists, usedTracks);
+      allCandidates.push(...undergroundResults);
+    }
+
+    if (allCandidates.length === 0) {
+      throw new Error(`No diverse ${filters.language} tracks found`);
+    }
+
+    // Select track with balanced unpredictability (trending + underrated)
+    return this.selectBalancedTrack(allCandidates, filters.language!);
+  }
+
+  private async searchUndergroundArtists(language: string, token: string, usedArtists: Set<string>, usedTracks: Set<string>): Promise<Track[]> {
+    const undergroundTerms: { [key: string]: string[] } = {
+      'hi': ['hindi indie band', 'underground hindi rapper', 'new hindi singer', 'delhi band hindi', 'mumbai indie hindi'],
+      'ta': ['chennai indie band', 'tamil rapper', 'new tamil artist', 'tamil band', 'coimbatore band'],
+      'te': ['hyderabad band telugu', 'indie telugu', 'new telugu singer', 'telugu rapper', 'vijayawada band'],
+      'pa': ['punjabi band', 'underground punjabi', 'new punjabi artist', 'amritsar band', 'ludhiana indie'],
+      'bn': ['bengali band', 'kolkata indie', 'new bengali singer', 'bangladesh band', 'bengali rapper'],
+      'gu': ['gujarati band', 'ahmedabad indie', 'new gujarati artist', 'surat band', 'gujarati rapper'],
+      'kn': ['bangalore band kannada', 'indie kannada', 'new kannada singer', 'mangalore band', 'kannada rapper'],
+      'ml': ['kochi band malayalam', 'indie malayalam', 'new malayalam singer', 'kerala band', 'malayalam rapper'],
+      'mr': ['pune band marathi', 'mumbai indie marathi', 'new marathi singer', 'marathi band', 'nashik band'],
+      'ur': ['urdu band', 'pakistani indie', 'new urdu artist', 'karachi band', 'lahore indie'],
+      'or': ['bhubaneswar band', 'indie odia', 'new odia singer', 'cuttack band', 'odia rapper'],
+      'as': ['guwahati band', 'indie assamese', 'new assamese singer', 'assam band', 'northeast indie']
+    };
+
+    const terms = undergroundTerms[language] || [`${language} independent`, `${language} band`];
+    const results: Track[] = [];
+
+    for (const term of terms) {
+      try {
         const response: any = await this.makeRequestWithRetry(
           'https://api.spotify.com/v1/search',
           {
             headers: { Authorization: `Bearer ${token}` },
-            params: searchParams,
+            params: {
+              q: term,
+              type: 'track',
+              limit: 20,
+              market: 'IN',
+              offset: Math.floor(Math.random() * 100)
+            },
           }
         );
 
-        let tracks = response.tracks.items;
-        if (tracks && tracks.length > 0) {
-          // Enhanced language detection for Indian languages
-          tracks = await Promise.all(tracks.map(async (track: Track) => ({
-            ...track,
-            language: await this.detectLanguageEnhanced(track, 'IN', filters.language!)
-          })));
-
-          // Apply maximum variety and randomness for Indian languages
-          tracks = this.enhanceIndianLanguageVariety(tracks, filters.language!);
-
-          // Strict filtering for Indian languages with artist diversity
-          const filteredTracks = tracks.filter((track: Track) => {
-            const detectedLang = track.language;
-            // Accept exact match or closely related languages
-            return detectedLang === filters.language || 
-                   (filters.language === 'hi' && ['ur', 'mr'].includes(detectedLang!)) ||
-                   (filters.language === 'bn' && detectedLang === 'as') ||
-                   this.isTrackLikelyInLanguage(track, filters.language!);
+        if (response.tracks?.items?.length > 0) {
+          const filteredTracks = response.tracks.items.filter((track: Track) => {
+            const artistName = track.artists[0]?.name;
+            const trackKey = `${track.name}-${artistName}`;
+            return !usedArtists.has(artistName) && !usedTracks.has(trackKey) && track.popularity < 60; // Focus on less popular tracks
           });
 
-          if (filteredTracks.length > 0) {
-            // Apply intelligent selection with no repetition
-            const selectedTrack = this.selectTrackWithMaxVariety(filteredTracks, filters.language!);
-            return selectedTrack;
-          }
+          results.push(...filteredTracks.slice(0, 3));
+          
+          // Update used sets
+          filteredTracks.forEach((track: Track) => {
+            const artistName = track.artists[0]?.name;
+            const trackKey = `${track.name}-${artistName}`;
+            usedArtists.add(artistName);
+            usedTracks.add(trackKey);
+          });
         }
       } catch (error) {
-        console.error(`Search failed for query: ${searchQuery}`, error);
-        continue; // Try next search combination
+        continue;
       }
     }
 
-    // Final fallback: return any Indian track if available
-    throw new Error(`No ${filters.language} tracks found`);
+    return results;
   }
 
-  // Enhanced language detection using multiple data sources
+  private isTrackInTargetLanguage(track: Track, targetLanguage: string): boolean {
+    // Enhanced language detection logic
+    const detectedLanguage = track.language || this.detectLanguageFromTrackData(track);
+    
+    // Direct match
+    if (detectedLanguage === targetLanguage) return true;
+    
+    // Language family matches (for related languages)
+    const languageFamilies: { [key: string]: string[] } = {
+      'hi': ['hi', 'ur', 'mr'], // Hindi family
+      'ta': ['ta', 'ml'],       // Tamil family  
+      'te': ['te', 'kn'],       // Telugu family
+      'bn': ['bn', 'as'],       // Bengali family
+    };
+
+    if (languageFamilies[targetLanguage]?.includes(detectedLanguage)) {
+      return true;
+    }
+
+    // Fallback: check if track content suggests target language
+    return this.analyzeTrackContentForLanguage(track, targetLanguage);
+  }
+
+  private detectLanguageFromTrackData(track: Track): string {
+    const text = `${track.name} ${track.artists.map(a => a.name).join(' ')} ${track.album.name}`.toLowerCase();
+    
+    // Quick script detection
+    if (/[\u0900-\u097F]/.test(text)) return 'hi';
+    if (/[\u0B80-\u0BFF]/.test(text)) return 'ta';
+    if (/[\u0C00-\u0C7F]/.test(text)) return 'te';
+    if (/[\u0980-\u09FF]/.test(text)) return 'bn';
+    if (/[\u0A80-\u0AFF]/.test(text)) return 'gu';
+    if (/[\u0C80-\u0CFF]/.test(text)) return 'kn';
+    if (/[\u0D00-\u0D7F]/.test(text)) return 'ml';
+    if (/[\u0A00-\u0A7F]/.test(text)) return 'pa';
+    if (/[\u0B00-\u0B7F]/.test(text)) return 'or';
+    if (/[\u0600-\u06FF]/.test(text)) return 'ur';
+    
+    // Pattern-based detection with better accuracy
+    if (/\b(bollywood|hindi|kumar|singh|sharma|agarwal|pyaar|ishq|dil)\b/i.test(text)) return 'hi';
+    if (/\b(tamil|kollywood|raja|murugan|chennai|kadhal)\b/i.test(text)) return 'ta';
+    if (/\b(telugu|tollywood|reddy|krishna|hyderabad|prema)\b/i.test(text)) return 'te';
+    if (/\b(punjabi|singh|kaur|jatt|punjab|bhangra)\b/i.test(text)) return 'pa';
+    if (/\b(bengali|bangla|kolkata|babu|roy|sen)\b/i.test(text)) return 'bn';
+    if (/\b(gujarati|gujarat|patel|shah|garba)\b/i.test(text)) return 'gu';
+    if (/\b(kannada|karnataka|gowda|bengaluru)\b/i.test(text)) return 'kn';
+    if (/\b(malayalam|kerala|menon|nair)\b/i.test(text)) return 'ml';
+    if (/\b(marathi|maharashtra|patil|kulkarni)\b/i.test(text)) return 'mr';
+    if (/\b(urdu|ghazal|qawwali|khan|ali)\b/i.test(text)) return 'ur';
+    if (/\b(odia|odisha|rath|panda)\b/i.test(text)) return 'or';
+    if (/\b(assamese|assam|das|gogoi)\b/i.test(text)) return 'as';
+    
+    return 'en';
+  }
+
+  private analyzeTrackContentForLanguage(track: Track, targetLanguage: string): boolean {
+    const artistName = track.artists[0]?.name.toLowerCase() || '';
+    const trackName = track.name.toLowerCase();
+    const albumName = track.album.name.toLowerCase();
+    
+    // Language-specific artist patterns for underrated/unknown artists
+    const languagePatterns: { [key: string]: RegExp[] } = {
+      'hi': [
+        /\b(kumar|singh|sharma|gupta|verma|agarwal|jain|shah|mehta|pandey)\b/i,
+        /\b(hindi|bollywood|mumbai|delhi|india|pyaar|ishq|dil|jaan)\b/i
+      ],
+      'ta': [
+        /\b(raja|rajan|kumar|murugan|selvam|karthik|vijay|ajith|arjun|surya)\b/i,
+        /\b(tamil|chennai|madras|coimbatore|salem|trichy|kadhal|anbu)\b/i
+      ],
+      'te': [
+        /\b(reddy|rao|krishna|rama|sai|sri|venkat|chandra|kumar|prasad)\b/i,
+        /\b(telugu|hyderabad|vijayawada|tirupati|vizag|warangal|prema)\b/i
+      ],
+      'pa': [
+        /\b(singh|kaur|gill|dhillon|sandhu|brar|sidhu|bajwa|grewal)\b/i,
+        /\b(punjabi|punjab|amritsar|ludhiana|patiala|chandigarh|jatt|munda)\b/i
+      ],
+      'bn': [
+        /\b(das|roy|sen|ghosh|mukherjee|chatterjee|banerjee|chakraborty)\b/i,
+        /\b(bengali|bangla|kolkata|dhaka|sylhet|chittagong|bhalobasha)\b/i
+      ],
+      'gu': [
+        /\b(patel|shah|dave|mehta|joshi|gandhi|amin|desai|modi)\b/i,
+        /\b(gujarati|gujarat|ahmedabad|surat|vadodara|rajkot|garba)\b/i
+      ],
+      'kn': [
+        /\b(gowda|rao|kumar|hegde|shetty|nayak|bhat|acharya)\b/i,
+        /\b(kannada|karnataka|bangalore|bengaluru|mysore|hubli|prema)\b/i
+      ],
+      'ml': [
+        /\b(nair|menon|pillai|kumar|das|varma|krishnan|unni)\b/i,
+        /\b(malayalam|kerala|kochi|trivandrum|kozhikode|thrissur|sneham)\b/i
+      ],
+      'mr': [
+        /\b(patil|desai|joshi|kulkarni|bhosle|jadhav|pawar|shinde)\b/i,
+        /\b(marathi|maharashtra|mumbai|pune|nagpur|nashik|lavani)\b/i
+      ],
+      'ur': [
+        /\b(khan|ali|hassan|ahmed|shah|malik|qureshi|siddiqui)\b/i,
+        /\b(urdu|ghazal|qawwali|nazm|shayari|pakistan|ishq|mohabbat)\b/i
+      ],
+      'or': [
+        /\b(rath|panda|sahoo|nayak|das|mishra|patra|behera)\b/i,
+        /\b(odia|odisha|bhubaneswar|cuttack|puri|sambalpur)\b/i
+      ],
+      'as': [
+        /\b(das|gogoi|borah|deka|kalita|sharma|baruah|hazarika)\b/i,
+        /\b(assamese|assam|guwahati|dibrugarh|jorhat|silchar|bihu)\b/i
+      ]
+    };
+
+    const patterns = languagePatterns[targetLanguage] || [];
+    const allText = `${artistName} ${trackName} ${albumName}`;
+    
+    return patterns.some(pattern => pattern.test(allText));
+  }
+
+  private selectBalancedTrack(tracks: Track[], language: string): Track {
+    if (tracks.length === 1) return tracks[0];
+
+    // Create balanced scoring system that includes trending hits and underrated gems
+    const scoredTracks = tracks.map(track => {
+      let varietyScore = Math.random() * 100; // Base randomness
+      
+      // Balanced approach: boost both high and low popularity tracks
+      if (track.popularity > 70) {
+        varietyScore += 25; // Trending hits get some boost
+      } else if (track.popularity < 30) {
+        varietyScore += 40; // Underrated tracks get higher boost
+      } else if (track.popularity >= 30 && track.popularity <= 70) {
+        varietyScore += 15; // Mid-range gets modest boost
+      }
+      
+      // Boost score for album tracks vs singles (often more variety)
+      if (!track.album.name.toLowerCase().includes('single')) {
+        varietyScore += 20;
+      }
+      
+      // Time-based variety (mix of old, recent, and current)
+      const releaseYear = new Date(track.album.release_date).getFullYear();
+      const currentYear = new Date().getFullYear();
+      const age = currentYear - releaseYear;
+      
+      if (age > 15) varietyScore += 15; // Classic tracks
+      else if (age < 2) varietyScore += 25; // Very recent
+      else if (age >= 2 && age <= 5) varietyScore += 20; // Recent hits
+      else if (age >= 6 && age <= 10) varietyScore += 10; // Mid-range
+      
+      // Boost for diverse artist names (likely independent or unique)
+      const artistName = track.artists[0]?.name || '';
+      if (artistName.length > 15 || artistName.includes('&') || artistName.includes('Band')) {
+        varietyScore += 10;
+      }
+      
+      // Boost for explicit content (often more diverse/authentic)
+      if (track.explicit) {
+        varietyScore += 5;
+      }
+      
+      return { track, score: varietyScore };
+    });
+
+    // Sort by variety score
+    scoredTracks.sort((a, b) => b.score - a.score);
+    
+    // Select from top balanced tracks with additional randomness
+    const topBalanced = scoredTracks.slice(0, Math.min(8, scoredTracks.length));
+    const finalSelection = topBalanced[Math.floor(Math.random() * topBalanced.length)];
+    
+    return finalSelection.track;
+  }
+
+  // Enhanced language detection with API data
   private async detectLanguageEnhanced(track: Track, market: string, targetLanguage?: string): Promise<string> {
     try {
       // Get additional data from Spotify API
@@ -971,89 +1240,6 @@ class SpotifyService {
     };
 
     return marketLanguageMap[market] || 'en';
-  }
-
-  private isTrackLikelyInLanguage(track: Track, language: string): boolean {
-    const artistNames = track.artists.map(a => a.name.toLowerCase()).join(' ');
-    const trackName = track.name.toLowerCase();
-    const albumName = track.album.name.toLowerCase();
-    const allText = `${trackName} ${artistNames} ${albumName}`;
-    
-    // Enhanced artist-based detection for Indian languages
-    const languageArtists: { [key: string]: string[] } = {
-      'hi': [
-        'arijit singh', 'shreya ghoshal', 'kumar sanu', 'lata mangeshkar', 'kishore kumar', 
-        'mohammad rafi', 'asha bhosle', 'udit narayan', 'alka yagnik', 'sonu nigam',
-        'rahat fateh ali khan', 'armaan malik', 'tulsi kumar', 'neha kakkar', 'yo yo honey singh'
-      ],
-      'ta': [
-        'yuvan shankar raja', 'anirudh', 'sid sriram', 'chinmayi', 'hariharan', 'unni krishnan',
-        'karthik', 'shakthisree gopalan', 'haricharan', 'pradeep kumar', 'vijay yesudas'
-      ],
-      'te': [
-        'devi sri prasad', 'ss thaman', 'mickey j meyer', 'keeravani', 'koti', 
-        'anup rubens', 'gopi sundar', 'ravi basrur', 'vishal chandrasekhar'
-      ],
-      'bn': [
-        'hemanta mukherjee', 'kishore kumar', 'lata mangeshkar', 'asha bhosle', 'manna dey',
-        'sandhya mukherjee', 'shyamal mitra', 'nachiketa', 'srikanto acharya'
-      ],
-      'pa': [
-        'diljit dosanjh', 'sidhu moose wala', 'amrit maan', 'hardy sandhu', 'gurdas maan',
-        'kuldeep manak', 'amar singh chamkila', 'babbu maan', 'jazzy b'
-      ],
-      'gu': [
-        'falguni pathak', 'kirtidan gadhvi', 'hemant chauhan', 'atul purohit', 'alka yagnik',
-        'udit narayan', 'kavita krishnamurthy', 'mahesh kanodia'
-      ],
-      'kn': [
-        'sonu nigam', 'shreya ghoshal', 'rajesh krishnan', 'hemanth kumar', 'k j yesudas',
-        'p b sreenivas', 's janaki', 'vani jairam', 'chitra'
-      ],
-      'ml': [
-        'yesudas', 'chithra', 'mg sreekumar', 'sujatha', 'unni menon', 'hariharan',
-        'vineeth sreenivasan', 'job kurian', 'najim arshad'
-      ],
-      'mr': [
-        'lata mangeshkar', 'asha bhosle', 'suresh wadkar', 'anuradha paudwal', 'usha mangeshkar',
-        'mahendra kapoor', 'ajay atul', 'shankar mahadevan'
-      ],
-      'ur': [
-        'mehdi hassan', 'ghulam ali', 'nusrat fateh ali khan', 'abida parveen', 'farida khanum',
-        'iqbal bano', 'rahat fateh ali khan', 'atif aslam', 'rahat indori'
-      ]
-    };
-
-    if (languageArtists[language]) {
-      const matchFound = languageArtists[language].some(artist => {
-        const artistWords = artist.split(' ');
-        return artistWords.every(word => allText.includes(word.toLowerCase()));
-      });
-      
-      if (matchFound) {
-        return true;
-      }
-    }
-
-    // Check for language-specific terms in track/album names
-    const languageTerms: { [key: string]: string[] } = {
-      'hi': ['bollywood', 'hindi', 'pyaar', 'ishq', 'dil', 'jaan', 'sanam', 'mohabbat', 'film'],
-      'ta': ['tamil', 'kollywood', 'kadhal', 'anbu', 'uyir', 'vaazhkai', 'paadal'],
-      'te': ['telugu', 'tollywood', 'prema', 'jeevitham', 'paata', 'cinema'],
-      'pa': ['punjabi', 'bhangra', 'jatt', 'munda', 'kudi', 'gal', 'pyaar'],
-      'bn': ['bengali', 'bangla', 'bhalobasha', 'gaan', 'jibon', 'mon'],
-      'gu': ['gujarati', 'garba', 'dandiya', 'raas', 'lok'],
-      'kn': ['kannada', 'sandalwood', 'prema', 'jeevana', 'haadu'],
-      'ml': ['malayalam', 'mollywood', 'sneham', 'jeevitham', 'paattu'],
-      'mr': ['marathi', 'lavani', 'natak', 'geet', 'jiwan'],
-      'ur': ['urdu', 'ghazal', 'qawwali', 'nazm', 'shayari', 'ishq', 'mohabbat']
-    };
-
-    if (languageTerms[language]) {
-      return languageTerms[language].some(term => allText.includes(term));
-    }
-
-    return false;
   }
 
   private detectLanguage(track: Track, market: string): string {
@@ -1489,160 +1675,6 @@ class SpotifyService {
     }
     
     return optimized;
-  }
-
-  private enhanceIndianLanguageVariety(tracks: Track[], targetLanguage: string): Track[] {
-    // Group tracks by artist to prevent same artist repetition
-    const artistGroups: { [key: string]: Track[] } = {};
-    const albumGroups: { [key: string]: Track[] } = {};
-    const popularityGroups: { [key: string]: Track[] } = {};
-    
-    tracks.forEach(track => {
-      const artist = track.artists[0]?.name || 'unknown';
-      const album = track.album.name;
-      const popularity = track.popularity >= 70 ? 'high' : track.popularity >= 40 ? 'medium' : 'low';
-      
-      if (!artistGroups[artist]) artistGroups[artist] = [];
-      artistGroups[artist].push(track);
-      
-      if (!albumGroups[album]) albumGroups[album] = [];
-      albumGroups[album].push(track);
-      
-      if (!popularityGroups[popularity]) popularityGroups[popularity] = [];
-      popularityGroups[popularity].push(track);
-    });
-
-    // Apply maximum variety strategy
-    const diverseTracks: Track[] = [];
-    const usedArtists = new Set<string>();
-    const usedAlbums = new Set<string>();
-    
-    // First pass: One track per artist (prioritize underrated artists)
-    const artistsOrderedByPopularity = Object.keys(artistGroups).sort((a, b) => {
-      const avgPopA = artistGroups[a].reduce((sum, t) => sum + t.popularity, 0) / artistGroups[a].length;
-      const avgPopB = artistGroups[b].reduce((sum, t) => sum + t.popularity, 0) / artistGroups[b].length;
-      return avgPopA - avgPopB; // Ascending order (lower popularity first for diversity)
-    });
-
-    // Mix of underrated and popular artists for maximum variety
-    for (let i = 0; i < artistsOrderedByPopularity.length && diverseTracks.length < 50; i++) {
-      const artist = artistsOrderedByPopularity[i];
-      if (!usedArtists.has(artist)) {
-        const artistTracks = artistGroups[artist];
-        
-        // From each artist, prefer album tracks over singles for variety
-        const albumTracks = artistTracks.filter(t => 
-          !t.album.name.toLowerCase().includes('single') &&
-          !usedAlbums.has(t.album.name)
-        );
-        
-        const selectedTrack = albumTracks.length > 0 
-          ? albumTracks[Math.floor(Math.random() * albumTracks.length)]
-          : artistTracks[Math.floor(Math.random() * artistTracks.length)];
-        
-        diverseTracks.push(selectedTrack);
-        usedArtists.add(artist);
-        usedAlbums.add(selectedTrack.album.name);
-      }
-    }
-
-    // Second pass: Fill remaining with tracks from different albums
-    const remainingTracks = tracks.filter(track => 
-      !diverseTracks.some(dt => dt.id === track.id) &&
-      !usedAlbums.has(track.album.name)
-    );
-
-    for (const track of remainingTracks) {
-      if (diverseTracks.length >= 50) break;
-      if (!usedAlbums.has(track.album.name)) {
-        diverseTracks.push(track);
-        usedAlbums.add(track.album.name);
-      }
-    }
-
-    // Final shuffle with temporal and popularity variance
-    return this.shuffleWithMaximumVariance(diverseTracks);
-  }
-
-  private selectTrackWithMaxVariety(tracks: Track[], language: string): Track {
-    if (tracks.length === 1) return tracks[0];
-
-    // Apply variety selection based on multiple factors
-    const now = new Date();
-    const scoredTracks = tracks.map(track => {
-      let score = Math.random(); // Base randomness
-      
-      // Temporal diversity bonus
-      const releaseYear = new Date(track.album.release_date).getFullYear();
-      const age = now.getFullYear() - releaseYear;
-      
-      // Prefer variety in release periods
-      if (age < 3) score += 0.3; // Recent music
-      else if (age > 10 && age < 20) score += 0.4; // Classic period
-      else if (age > 20) score += 0.2; // Vintage
-      
-      // Popularity diversity bonus (favor underrated gems)
-      if (track.popularity < 50) score += 0.4; // Hidden gems
-      else if (track.popularity > 80) score += 0.1; // Popular hits
-      
-      // Album vs single preference (albums often have more variety)
-      if (!track.album.name.toLowerCase().includes('single')) score += 0.2;
-      
-      return { track, score };
-    });
-
-    // Select track with highest variety score
-    scoredTracks.sort((a, b) => b.score - a.score);
-    
-    // Add some randomness even to the top scoring tracks
-    const topCandidates = scoredTracks.slice(0, Math.min(5, scoredTracks.length));
-    return topCandidates[Math.floor(Math.random() * topCandidates.length)].track;
-  }
-
-  private shuffleWithMaximumVariance(tracks: Track[]): Track[] {
-    if (tracks.length <= 2) return tracks;
-
-    // Enhanced shuffle algorithm for maximum variance
-    const result = [...tracks];
-    
-    // Multiple shuffle passes with different criteria
-    for (let pass = 0; pass < 3; pass++) {
-      for (let i = result.length - 1; i > 0; i--) {
-        const current = result[i];
-        const prev = result[i - 1];
-        
-        // Avoid consecutive tracks from same artist or similar characteristics
-        const sameArtist = current.artists[0]?.name === prev.artists[0]?.name;
-        const sameAlbum = current.album.name === prev.album.name;
-        const similarPopularity = Math.abs(current.popularity - prev.popularity) < 15;
-        const sameDecade = Math.floor(new Date(current.album.release_date).getFullYear() / 10) === 
-                          Math.floor(new Date(prev.album.release_date).getFullYear() / 10);
-        
-        if (sameArtist || sameAlbum || (similarPopularity && sameDecade)) {
-          // Find a better position for more variety
-          let swapIndex = -1;
-          for (let j = Math.max(0, i - 5); j < Math.min(result.length, i + 5); j++) {
-            if (j === i || j === i - 1) continue;
-            
-            const candidate = result[j];
-            const candidateDifferent = candidate.artists[0]?.name !== prev.artists[0]?.name &&
-                                     candidate.album.name !== prev.album.name &&
-                                     Math.abs(candidate.popularity - prev.popularity) >= 15;
-            
-            if (candidateDifferent) {
-              swapIndex = j;
-              break;
-            }
-          }
-          
-          if (swapIndex !== -1) {
-            [result[i], result[swapIndex]] = [result[swapIndex], result[i]];
-          }
-        }
-      }
-    }
-
-    return result;
   }
 }
 
