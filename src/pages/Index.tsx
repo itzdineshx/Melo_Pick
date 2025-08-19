@@ -6,6 +6,7 @@ import MusicCard from '@/components/MusicCard';
 import FiltersModal, { MusicFilters } from '@/components/FiltersModal';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import AboutSection from '@/components/AboutSection';
 import { spotifyService, Track } from '@/services/spotify';
 
 const Index = () => {
@@ -188,6 +189,7 @@ const Index = () => {
         </div>
       </main>
 
+      <AboutSection />
       
       <Footer />
     </div>
