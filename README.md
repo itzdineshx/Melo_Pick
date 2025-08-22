@@ -1,7 +1,18 @@
 # 🎵 MeloPick
 
-![MeloPick Logo](./melopick-logo2.png)
 
+![MeloPick Screenshot](./melopick.png)
+
+
+<div align="center">
+
+[![View Site](https://img.shields.io/badge/View_Live_Site-008000?style=for-the-badge&logo=netlify&logoColor=white)](https://melopick.netlify.app/)
+
+![Spotify API](https://img.shields.io/badge/Spotify-API-1DB954?logo=spotify&logoColor=green&labelColor=1B1F23&style=flat-square)
+![API Status](https://img.shields.io/website?url=https%3A%2F%2Fapi.spotify.com&label=Spotify%20API&style=flat-square)
+
+
+</div>
 MeloPick is a sleek, green-and-black themed web app that helps you discover random songs using the Spotify API.  
 Say goodbye to endlessly scrolling through playlists — MeloPick finds hidden gems and lets you groove instantly.
 
@@ -15,11 +26,6 @@ Say goodbye to endlessly scrolling through playlists — MeloPick finds hidden g
 - 🔍 **Song Details** – View track name, artist, album art, and a play preview.
 - ❤️ **Favorites** – Save your favorite songs to revisit later.
 - 🔗 **Direct Links** – Open songs directly on Spotify.
-
----
-
-## 🖼 Preview
-![MeloPick Screenshot](./melopick.png)
 
 ---
 
@@ -85,3 +91,7 @@ This project is licensed under the MIT License.
 
 * **Spotify Web API** for song data and previews.
 * **Google Fonts** for typography.
+* **Brand Family** – MeloPick is part of the “Pick” brand alongside CinePick and AniePick.
+
+
+![MeloPick Logo](./melopick-logo2.png)
